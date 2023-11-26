@@ -1,10 +1,12 @@
-package com.supergotta.shortlink.admin.common.convention.enums;
+package com.supergotta.shortlink.admin.common.enums;
 
 import com.supergotta.shortlink.admin.common.convention.errorcode.IErrorCode;
 
 public enum UserErrorCodeEnum implements IErrorCode {
     USER_NULL("B000200", "用户记录不存在"),
-    USER_EXISTED("B000201", "用户记录已经存在");
+    USERNAME_EXISTED("B000201", "用户名已经存在"),
+    USER_EXISTED("B000202", "用户记录已经存在"),
+    USER_SAVE_ERROR("B000203", "用户信息新增失败");
 
     private final String code;
 
