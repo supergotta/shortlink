@@ -4,6 +4,7 @@ import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.supergotta.shortlink.admin.common.constant.RedisCacheConstant;
 import com.supergotta.shortlink.admin.common.enums.UserErrorCodeEnum;
 import com.supergotta.shortlink.admin.common.exception.ClientException;
 import com.supergotta.shortlink.admin.dao.entity.UserDO;
@@ -13,6 +14,8 @@ import com.supergotta.shortlink.admin.dto.resp.UserRespDTO;
 import com.supergotta.shortlink.admin.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.redisson.api.RBloomFilter;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
@@ -24,6 +27,7 @@ import org.springframework.stereotype.Service;
 public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements UserService {
 
     private final RBloomFilter<String> userRegisterCachePenetrationBloomFilter;
+    private final RedissonClient redissonClient;
 
     @Override
     public UserRespDTO getUserByUsername(String username) {
@@ -58,12 +62,25 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         if (!hasUsername(requestParam.getUsername())){
             throw new ClientException(UserErrorCodeEnum.USERNAME_EXISTED);
         }
-        // 新增用户
-        int insertCount = baseMapper.insert(BeanUtil.toBean(requestParam, UserDO.class));
-        if (insertCount < 1){
-            throw new ClientException(UserErrorCodeEnum.USER_SAVE_ERROR);
+
+        // 获取Redisson分布式锁
+        String key = RedisCacheConstant.LOCK_USER_REGISTER_KEY + requestParam.getUsername();
+        RLock lock = redissonClient.getLock(key);
+
+        // 尝试获取锁
+        try {
+            if (lock.tryLock()){
+                // 新增用户
+                int insertCount = baseMapper.insert(BeanUtil.toBean(requestParam, UserDO.class));
+                if (insertCount < 1){
+                    throw new ClientException(UserErrorCodeEnum.USER_SAVE_ERROR);
+                }
+                // 将username插入到布隆过滤器中
+                userRegisterCachePenetrationBloomFilter.add(requestParam.getUsername());
+            }
+            throw new ClientException(UserErrorCodeEnum.USERNAME_EXISTED);
+        }finally {
+            lock.unlock();
         }
-        // 将username插入到布隆过滤器中
-        userRegisterCachePenetrationBloomFilter.add(requestParam.getUsername());
     }
 }
