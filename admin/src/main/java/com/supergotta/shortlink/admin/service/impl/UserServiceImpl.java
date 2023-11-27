@@ -77,8 +77,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
                 }
                 // 将username插入到布隆过滤器中
                 userRegisterCachePenetrationBloomFilter.add(requestParam.getUsername());
+            }else {
+                throw new ClientException(UserErrorCodeEnum.USERNAME_EXISTED);
             }
-            throw new ClientException(UserErrorCodeEnum.USERNAME_EXISTED);
         }finally {
             lock.unlock();
         }
