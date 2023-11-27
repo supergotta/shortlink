@@ -142,4 +142,14 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         String hashKey = "login_" + username;
         return stringRedisTemplate.opsForHash().get(hashKey, token) != null;
     }
+
+    @Override
+    public void logout(String token, String username) {
+        String hashKey = "login_" + username;
+        if (checkLogin(token, username)){
+            stringRedisTemplate.delete(hashKey);
+            return;
+        }
+        throw new ClientException("用户未登录");
+    }
 }
