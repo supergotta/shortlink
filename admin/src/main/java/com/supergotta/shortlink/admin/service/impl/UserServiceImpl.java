@@ -131,7 +131,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         String key = UUID.randomUUID().toString();
         // 3.2 将token, 以及token对应的用户对象存入到redis中, 并设置30分中的有效期
         stringRedisTemplate.opsForHash().put(hashKey, key, JSON.toJSONString(userDO));
-        stringRedisTemplate.expire(hashKey, 30, TimeUnit.MINUTES);
+        stringRedisTemplate.expire(hashKey, 30, TimeUnit.DAYS);
         // 3.3 将token返回给前端
         return new UserLoginRespDTO(key);
     }

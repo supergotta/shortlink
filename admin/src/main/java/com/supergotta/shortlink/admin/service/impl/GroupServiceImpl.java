@@ -2,6 +2,7 @@ package com.supergotta.shortlink.admin.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.supergotta.shortlink.admin.common.biz.user.UserContext;
 import com.supergotta.shortlink.admin.dao.entity.GroupDO;
 import com.supergotta.shortlink.admin.dao.mapper.GroupMapper;
 import com.supergotta.shortlink.admin.dto.req.ShortLinkGroupReqDTO;
@@ -35,7 +36,7 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, GroupDO> implemen
         GroupDO groupDO = GroupDO.builder()
                 .gid(gid)
                 .sortOrder(0)
-                // TODO 设置用户名
+                .username(UserContext.getUsername())
                 .name(groupName)
                 .build();
         baseMapper.insert(groupDO);
@@ -44,7 +45,7 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, GroupDO> implemen
     @Override
     public List<ShortLinkGroupReqDTO> listGroup() {
         // TODO 获取用户名
-        String username = "abc";
+        String username = UserContext.getUsername();
 
         List<GroupDO> groupList = lambdaQuery()
                 .eq(GroupDO::getDelFlag, 0)
