@@ -3,9 +3,11 @@ package com.supergotta.shortlink.admin.controller;
 import cn.hutool.core.bean.BeanUtil;
 import com.supergotta.shortlink.admin.common.convention.result.Result;
 import com.supergotta.shortlink.admin.common.convention.result.Results;
+import com.supergotta.shortlink.admin.dto.req.UserLoginReqDTO;
 import com.supergotta.shortlink.admin.dto.req.UserRegisterReqDTO;
 import com.supergotta.shortlink.admin.dto.req.UserUpdateReqDTO;
 import com.supergotta.shortlink.admin.dto.resp.ActualUserRespDTO;
+import com.supergotta.shortlink.admin.dto.resp.UserLoginRespDTO;
 import com.supergotta.shortlink.admin.dto.resp.UserRespDTO;
 import com.supergotta.shortlink.admin.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -54,9 +56,28 @@ public class UserController {
         return Results.success();
     }
 
+    /**
+     * 修改用户
+     */
     @PutMapping("/api/short-link/v1/user")
     public Result<Void> update(@RequestBody UserUpdateReqDTO userUpdateReqDTO){
         userService.updateByUsername(userUpdateReqDTO);
         return Results.success();
+    }
+
+    /**
+     * 用户登陆
+     */
+    @PostMapping("/api/short-link/v1/user/login")
+    public Result<UserLoginRespDTO> login(@RequestBody UserLoginReqDTO userLoginReqDTO){
+        return Results.success(userService.login(userLoginReqDTO));
+    }
+
+    /**
+     * 检查用户是否登陆
+     */
+    @GetMapping("/api/short-link/v1/user/check-login")
+    public Result<Boolean> checkLogin(@RequestParam("token") String token, @RequestParam("username") String username){
+        return Results.success(userService.checkLogin(token, username));
     }
 }

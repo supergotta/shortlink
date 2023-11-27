@@ -2,8 +2,10 @@ package com.supergotta.shortlink.admin.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.supergotta.shortlink.admin.dao.entity.UserDO;
+import com.supergotta.shortlink.admin.dto.req.UserLoginReqDTO;
 import com.supergotta.shortlink.admin.dto.req.UserRegisterReqDTO;
 import com.supergotta.shortlink.admin.dto.req.UserUpdateReqDTO;
+import com.supergotta.shortlink.admin.dto.resp.UserLoginRespDTO;
 import com.supergotta.shortlink.admin.dto.resp.UserRespDTO;
 
 
@@ -34,4 +36,17 @@ public interface UserService extends IService<UserDO> {
      * @param userUpdateReqDTO 修改用户请求参数
      */
     void updateByUsername(UserUpdateReqDTO userUpdateReqDTO);
+
+    /**
+     * 用户登陆
+     * @param userLoginReqDTO 用户登陆请求参数
+     */
+    UserLoginRespDTO login(UserLoginReqDTO userLoginReqDTO);
+
+    /**
+     * 检查是否登陆
+     * @param token 请求中传入的token
+     * @return 用户是否登陆
+     */
+    Boolean checkLogin(String token, String username);
 }
