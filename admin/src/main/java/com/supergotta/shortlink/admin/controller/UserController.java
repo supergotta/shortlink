@@ -4,6 +4,7 @@ import cn.hutool.core.bean.BeanUtil;
 import com.supergotta.shortlink.admin.common.convention.result.Result;
 import com.supergotta.shortlink.admin.common.convention.result.Results;
 import com.supergotta.shortlink.admin.dto.req.UserRegisterReqDTO;
+import com.supergotta.shortlink.admin.dto.req.UserUpdateReqDTO;
 import com.supergotta.shortlink.admin.dto.resp.ActualUserRespDTO;
 import com.supergotta.shortlink.admin.dto.resp.UserRespDTO;
 import com.supergotta.shortlink.admin.service.UserService;
@@ -44,9 +45,18 @@ public class UserController {
         return Results.success(userService.hasUsername(username));
     }
 
+    /**
+     * 新增用户
+     */
     @PostMapping("/api/short-link/v1/user")
     public Result<Void> register(@RequestBody UserRegisterReqDTO userRegisterReqDTO){
         userService.Register(userRegisterReqDTO);
+        return Results.success();
+    }
+
+    @PutMapping("/api/short-link/v1/user")
+    public Result<Void> update(@RequestBody UserUpdateReqDTO userUpdateReqDTO){
+        userService.updateByUsername(userUpdateReqDTO);
         return Results.success();
     }
 }

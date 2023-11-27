@@ -2,6 +2,7 @@ package com.supergotta.shortlink.admin.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.supergotta.shortlink.admin.common.constant.RedisCacheConstant;
@@ -10,6 +11,7 @@ import com.supergotta.shortlink.admin.common.exception.ClientException;
 import com.supergotta.shortlink.admin.dao.entity.UserDO;
 import com.supergotta.shortlink.admin.dao.mapper.UserMapper;
 import com.supergotta.shortlink.admin.dto.req.UserRegisterReqDTO;
+import com.supergotta.shortlink.admin.dto.req.UserUpdateReqDTO;
 import com.supergotta.shortlink.admin.dto.resp.UserRespDTO;
 import com.supergotta.shortlink.admin.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -83,5 +85,16 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         }finally {
             lock.unlock();
         }
+    }
+
+    @Override
+    public void updateByUsername(UserUpdateReqDTO userUpdateReqDTO) {
+        //TODO 验证当前用户名是否为登陆用户
+
+        // 生成更新查询条件
+        LambdaUpdateWrapper<UserDO> wrapper = Wrappers.lambdaUpdate(UserDO.class)
+                .eq(UserDO::getUsername, userUpdateReqDTO.getUsername());
+        // 更新用户
+        baseMapper.update(BeanUtil.toBean(userUpdateReqDTO, UserDO.class), wrapper);
     }
 }
