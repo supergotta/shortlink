@@ -11,7 +11,7 @@ public interface GroupService extends IService<GroupDO> {
 
     /**
      * 新增短链接分组
-     * @param groupName 分组名
+     * @param shortLinkGroupSaveReqDTO 新增分组请求响应对象
      */
     void saveGroup(ShortLinkGroupSaveReqDTO shortLinkGroupSaveReqDTO);
 
