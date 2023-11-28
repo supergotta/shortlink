@@ -8,6 +8,7 @@ import com.supergotta.shortlink.admin.dao.entity.GroupDO;
 import com.supergotta.shortlink.admin.dao.mapper.GroupMapper;
 import com.supergotta.shortlink.admin.dto.req.ShortLinkGroupReqDTO;
 import com.supergotta.shortlink.admin.dto.req.ShortLinkGroupSaveReqDTO;
+import com.supergotta.shortlink.admin.dto.req.ShortLinkGroupSortReqDTO;
 import com.supergotta.shortlink.admin.dto.req.ShortLinkGroupUpdateReqDTO;
 import com.supergotta.shortlink.admin.service.GroupService;
 import lombok.RequiredArgsConstructor;
@@ -82,6 +83,23 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, GroupDO> implemen
         if (!updateSuccess){
             throw new ServiceException("删除失败");
         }
+    }
+
+    @Override
+    public void updateGroupSort(List<ShortLinkGroupSortReqDTO> shortLinkGroupSortReqDTOS) {
+        shortLinkGroupSortReqDTOS.forEach(each -> {
+            GroupDO groupDO = GroupDO.builder()
+                    .sortOrder(each.getSortOrder())
+                    .build();
+            boolean updateSuccess = lambdaUpdate()
+                    .eq(GroupDO::getUsername, UserContext.getUsername())
+                    .eq(GroupDO::getGid, each.getGid())
+                    .eq(GroupDO::getDelFlag, 0)
+                    .update(groupDO);
+            if (!updateSuccess){
+                throw new ServiceException("更新失败");
+            }
+        });
     }
 
     // 生成一个包含数字和字母的6位随机字符串的方法
