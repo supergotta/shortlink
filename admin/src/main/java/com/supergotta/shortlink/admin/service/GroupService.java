@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.supergotta.shortlink.admin.dao.entity.GroupDO;
 import com.supergotta.shortlink.admin.dto.req.ShortLinkGroupReqDTO;
 import com.supergotta.shortlink.admin.dto.req.ShortLinkGroupSaveReqDTO;
+import com.supergotta.shortlink.admin.dto.req.ShortLinkGroupUpdateReqDTO;
 
 import java.util.List;
 
@@ -23,4 +24,10 @@ public interface GroupService extends IService<GroupDO> {
      * @return 当前用户对应的集合
      */
     List<ShortLinkGroupReqDTO> listGroup();
+
+    /**
+     * 修改短链接分组名
+     * @param shortLinkGroupUpdateReqDTO 短链接分组修改请求实体
+     */
+    void updateGroup(ShortLinkGroupUpdateReqDTO shortLinkGroupUpdateReqDTO);
 }

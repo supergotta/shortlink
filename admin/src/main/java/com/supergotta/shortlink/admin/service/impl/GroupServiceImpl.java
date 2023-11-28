@@ -3,10 +3,12 @@ package com.supergotta.shortlink.admin.service.impl;
 import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.supergotta.shortlink.admin.common.biz.user.UserContext;
+import com.supergotta.shortlink.admin.common.exception.ServiceException;
 import com.supergotta.shortlink.admin.dao.entity.GroupDO;
 import com.supergotta.shortlink.admin.dao.mapper.GroupMapper;
 import com.supergotta.shortlink.admin.dto.req.ShortLinkGroupReqDTO;
 import com.supergotta.shortlink.admin.dto.req.ShortLinkGroupSaveReqDTO;
+import com.supergotta.shortlink.admin.dto.req.ShortLinkGroupUpdateReqDTO;
 import com.supergotta.shortlink.admin.service.GroupService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -54,6 +56,19 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, GroupDO> implemen
                 .orderByDesc(GroupDO::getUpdateTime)
                 .list();
         return BeanUtil.copyToList(groupList, ShortLinkGroupReqDTO.class);
+    }
+
+    @Override
+    public void updateGroup(ShortLinkGroupUpdateReqDTO shortLinkGroupUpdateReqDTO) {
+        String username = UserContext.getUsername();
+        boolean updateSuccess = lambdaUpdate()
+                .eq(GroupDO::getUsername, UserContext.getUsername())
+                .eq(GroupDO::getGid, shortLinkGroupUpdateReqDTO.getGid())
+                .eq(GroupDO::getDelFlag, 0)
+                .update(GroupDO.builder().name(shortLinkGroupUpdateReqDTO.getName()).build());
+        if (!updateSuccess){
+            throw new ServiceException("更新失败");
+        }
     }
 
     // 生成一个包含数字和字母的6位随机字符串的方法
