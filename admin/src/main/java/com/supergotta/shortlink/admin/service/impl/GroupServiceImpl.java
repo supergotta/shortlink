@@ -71,6 +71,19 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, GroupDO> implemen
         }
     }
 
+    @Override
+    public void deleteGroup(String gid) {
+        // 采用软删除方式, 仅修改delFlag为1
+        boolean updateSuccess = lambdaUpdate()
+                .eq(GroupDO::getUsername, UserContext.getUsername())
+                .eq(GroupDO::getGid, gid)
+                .eq(GroupDO::getDelFlag, 0)
+                .update(GroupDO.builder().delFlag(1).build());
+        if (!updateSuccess){
+            throw new ServiceException("删除失败");
+        }
+    }
+
     // 生成一个包含数字和字母的6位随机字符串的方法
     public static String generateRandomString() {
         String alphaNumeric = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
