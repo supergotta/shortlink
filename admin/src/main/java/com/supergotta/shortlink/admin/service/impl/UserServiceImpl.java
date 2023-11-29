@@ -11,11 +11,13 @@ import com.supergotta.shortlink.admin.common.enums.UserErrorCodeEnum;
 import com.supergotta.shortlink.admin.common.exception.ClientException;
 import com.supergotta.shortlink.admin.dao.entity.UserDO;
 import com.supergotta.shortlink.admin.dao.mapper.UserMapper;
+import com.supergotta.shortlink.admin.dto.req.ShortLinkGroupSaveReqDTO;
 import com.supergotta.shortlink.admin.dto.req.UserLoginReqDTO;
 import com.supergotta.shortlink.admin.dto.req.UserRegisterReqDTO;
 import com.supergotta.shortlink.admin.dto.req.UserUpdateReqDTO;
 import com.supergotta.shortlink.admin.dto.resp.UserLoginRespDTO;
 import com.supergotta.shortlink.admin.dto.resp.UserRespDTO;
+import com.supergotta.shortlink.admin.service.GroupService;
 import com.supergotta.shortlink.admin.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.redisson.api.RBloomFilter;
@@ -38,6 +40,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
     private final RBloomFilter<String> userRegisterCachePenetrationBloomFilter;
     private final RedissonClient redissonClient;
     private final StringRedisTemplate stringRedisTemplate;
+    private final GroupService groupService;
 
     @Override
     public UserRespDTO getUserByUsername(String username) {
@@ -87,6 +90,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
                 }
                 // 将username插入到布隆过滤器中
                 userRegisterCachePenetrationBloomFilter.add(requestParam.getUsername());
+                // 创建默认分组
+                groupService.saveGroup(new ShortLinkGroupSaveReqDTO("默认分组"));
             } else {
                 throw new ClientException(UserErrorCodeEnum.USERNAME_EXISTED);
             }
