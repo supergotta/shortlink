@@ -1,6 +1,6 @@
 package com.supergotta.shortlink.admin.controller;
 
-import com.supergotta.shortlink.admin.remote.dto.ShortLinkRemoteService;
+import com.supergotta.shortlink.admin.remote.ShortLinkRemoteService;
 import com.supergotta.shortlink.admin.remote.dto.req.ShortLinkCreateReqDTO;
 import org.springframework.web.bind.annotation.*;
 
@@ -10,6 +10,9 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 public class ShortLinkController {
 
+    /**
+     * 后续改为openFeign调用
+     */
     ShortLinkRemoteService shortLinkRemoteService = new ShortLinkRemoteService() {
     };
 

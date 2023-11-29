@@ -1,4 +1,4 @@
-package com.supergotta.shortlink.admin.remote.dto;
+package com.supergotta.shortlink.admin.remote;
 
 import cn.hutool.http.HttpUtil;
 import com.alibaba.fastjson.JSON;
@@ -6,6 +6,7 @@ import com.supergotta.shortlink.admin.remote.dto.req.ShortLinkCreateReqDTO;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -38,6 +39,17 @@ public interface ShortLinkRemoteService {
         requestMap.put("current", current);
         requestMap.put("size", size);
         return HttpUtil.get("http://127.0.0.1:8001/api/short-link/v1/page", requestMap);
+    }
+
+    /**
+     * 查询分组短链接总量
+     * @return
+     */
+    default String listGroupShortLinkCount(List<String>gids){
+        Map<String, Object> requestMap = new HashMap<>();
+        requestMap.put("gids", gids);
+        String response = HttpUtil.get("http://127.0.0.1:8001/api/short-link/v1/count", requestMap);
+        return response;
     }
 
 }

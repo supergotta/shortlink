@@ -1,8 +1,11 @@
 package com.supergotta.shortlink.admin.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.TypeReference;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.supergotta.shortlink.admin.common.biz.user.UserContext;
+import com.supergotta.shortlink.admin.common.convention.result.Result;
 import com.supergotta.shortlink.admin.common.exception.ServiceException;
 import com.supergotta.shortlink.admin.dao.entity.GroupDO;
 import com.supergotta.shortlink.admin.dao.mapper.GroupMapper;
@@ -10,6 +13,8 @@ import com.supergotta.shortlink.admin.dto.req.ShortLinkGroupReqDTO;
 import com.supergotta.shortlink.admin.dto.req.ShortLinkGroupSaveReqDTO;
 import com.supergotta.shortlink.admin.dto.req.ShortLinkGroupSortReqDTO;
 import com.supergotta.shortlink.admin.dto.req.ShortLinkGroupUpdateReqDTO;
+import com.supergotta.shortlink.admin.remote.ShortLinkRemoteService;
+import com.supergotta.shortlink.admin.remote.dto.resp.ShortLinkGroupCountQueryRespDTO;
 import com.supergotta.shortlink.admin.service.GroupService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -23,6 +28,12 @@ import java.util.Random;
 @Service
 @RequiredArgsConstructor
 public class GroupServiceImpl extends ServiceImpl<GroupMapper, GroupDO> implements GroupService {
+
+    /**
+     * 后续改为openFeign调用
+     */
+    ShortLinkRemoteService shortLinkRemoteService = new ShortLinkRemoteService() {
+    };
 
     @Override
     public void saveGroup(ShortLinkGroupSaveReqDTO shortLinkGroupSaveReqDTO) {
@@ -55,7 +66,21 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, GroupDO> implemen
                 .orderByDesc(GroupDO::getSortOrder)
                 .orderByDesc(GroupDO::getUpdateTime)
                 .list();
-        return BeanUtil.copyToList(groupList, ShortLinkGroupReqDTO.class);
+        String response = shortLinkRemoteService.listGroupShortLinkCount(groupList.stream().map(GroupDO::getGid).toList());
+        TypeReference<Result<List<ShortLinkGroupCountQueryRespDTO>>> typeReference = new TypeReference<>() {};
+        Result<List<ShortLinkGroupCountQueryRespDTO>> listResult = JSON.parseObject(response, typeReference);
+        List<ShortLinkGroupCountQueryRespDTO> dataList = listResult.getData();
+
+        List<ShortLinkGroupReqDTO> shortLinkGroupReqDTOS = BeanUtil.copyToList(groupList, ShortLinkGroupReqDTO.class);
+        for (ShortLinkGroupReqDTO shortLinkGroupReqDTO : shortLinkGroupReqDTOS) {
+            for (ShortLinkGroupCountQueryRespDTO shortLinkGroupCountQueryRespDTO : dataList) {
+                if (shortLinkGroupReqDTO.getGid().equals(shortLinkGroupCountQueryRespDTO.getGid())){
+                    shortLinkGroupReqDTO.setShortLinkCount(shortLinkGroupCountQueryRespDTO.getShortLinkCount());
+                }
+            }
+        }
+
+        return shortLinkGroupReqDTOS;
     }
 
     @Override
