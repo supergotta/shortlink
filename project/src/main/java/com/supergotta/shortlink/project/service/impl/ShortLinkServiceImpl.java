@@ -1,12 +1,15 @@
-package com.supergotta.shortlink.project.dao.mapper.impl;
+package com.supergotta.shortlink.project.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.supergotta.shortlink.project.common.exception.ServiceException;
 import com.supergotta.shortlink.project.dao.entity.ShortLinkDO;
 import com.supergotta.shortlink.project.dao.mapper.ShortLinkMapper;
 import com.supergotta.shortlink.project.dto.req.ShortLinkCreateReqDTO;
+import com.supergotta.shortlink.project.dto.req.ShortLinkPageReqDTO;
 import com.supergotta.shortlink.project.dto.resp.ShortLinkCreateRespDTO;
+import com.supergotta.shortlink.project.dto.resp.ShortLinkPageRespDTO;
 import com.supergotta.shortlink.project.service.ShortLinkService;
 import com.supergotta.shortlink.project.util.HashUtil;
 import lombok.RequiredArgsConstructor;
@@ -73,5 +76,16 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                 .originUrl(shortLinkCreateReqDTO.getOriginUrl())
                 .gid(shortLinkCreateReqDTO.getGid())
                 .build();
+    }
+
+    @Override
+    public IPage<ShortLinkPageRespDTO> pageShortLink(ShortLinkPageReqDTO shortLinkPageReqDTO) {
+         IPage<ShortLinkDO> page = lambdaQuery()
+                 .eq(ShortLinkDO::getGid, shortLinkPageReqDTO.getGid())
+                 .eq(ShortLinkDO::getEnableStatus, 0)
+                 .eq(ShortLinkDO::getDelFlag, 0)
+                 .page(shortLinkPageReqDTO);
+
+        return page.convert(each -> BeanUtil.toBean(each, ShortLinkPageRespDTO.class));
     }
 }

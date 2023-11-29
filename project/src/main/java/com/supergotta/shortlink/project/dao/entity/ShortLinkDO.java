@@ -54,6 +54,11 @@ public class ShortLinkDO implements Serializable {
     private String gid;
 
     /**
+     * 网站标识
+     */
+    private String favicon;
+
+    /**
      * 启用状态 0: 启用 1: 未启用
      */
     private int enableStatus;

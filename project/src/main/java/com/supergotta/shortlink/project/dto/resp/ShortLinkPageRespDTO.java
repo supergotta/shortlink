@@ -1,19 +1,33 @@
-package com.supergotta.shortlink.project.dto.req;
+package com.supergotta.shortlink.project.dto.resp;
 
 import lombok.Data;
 
 import java.util.Date;
 
 /**
- * 短链接创建请求对象
+ * 短链接分页请求响应对象
  */
 @Data
-public class ShortLinkCreateReqDTO {
+public class ShortLinkPageRespDTO {
+    /**
+     * id
+     */
+    private Long id;
 
     /**
      * 域名
      */
     private String domain;
+
+    /**
+     * 短链接
+     */
+    private String shortUri;
+
+    /**
+     * 完整短链接
+     */
+    private String fullShortUrl;
 
     /**
      * 原始链接
@@ -31,11 +45,6 @@ public class ShortLinkCreateReqDTO {
     private String favicon;
 
     /**
-     * 创建类型 0: 接口创建 1: 控制台创建
-     */
-    private int createType;
-
-    /**
      * 有效期类型 0: 永久有效 1: 自定义
      */
     private int validDateType;
@@ -49,5 +58,4 @@ public class ShortLinkCreateReqDTO {
      * 描述
      */
     private String description;
-
 }
