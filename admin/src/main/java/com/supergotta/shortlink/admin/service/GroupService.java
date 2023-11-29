@@ -19,6 +19,7 @@ public interface GroupService extends IService<GroupDO> {
      * @param shortLinkGroupSaveReqDTO 新增分组请求响应对象
      */
     void saveGroup(ShortLinkGroupSaveReqDTO shortLinkGroupSaveReqDTO);
+    void saveGroup(ShortLinkGroupSaveReqDTO shortLinkGroupSaveReqDTO, String username);
 
     /**
      * 查询用户短链接分组集合

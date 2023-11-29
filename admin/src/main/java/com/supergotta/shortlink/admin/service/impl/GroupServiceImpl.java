@@ -57,6 +57,27 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, GroupDO> implemen
     }
 
     @Override
+    public void saveGroup(ShortLinkGroupSaveReqDTO shortLinkGroupSaveReqDTO, String username) {
+
+        String groupName = shortLinkGroupSaveReqDTO.getName();
+        //1. 为gid字段生成随机数, 如果有重复的话就再生成
+        String gid = generateRandomString();
+        GroupDO group = lambdaQuery().eq(GroupDO::getGid, gid).one();
+        while (group != null){
+            gid = generateRandomString();
+            group = lambdaQuery().eq(GroupDO::getGid, gid).one();
+        }
+        //2. 拿着上面创建好的gid创建Group对象并插入
+        GroupDO groupDO = GroupDO.builder()
+                .gid(gid)
+                .sortOrder(0)
+                .username(username)
+                .name(groupName)
+                .build();
+        baseMapper.insert(groupDO);
+    }
+
+    @Override
     public List<ShortLinkGroupReqDTO> listGroup() {
         String username = UserContext.getUsername();
 

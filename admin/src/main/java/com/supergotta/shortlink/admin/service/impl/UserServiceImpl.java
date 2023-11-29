@@ -91,7 +91,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
                 // 将username插入到布隆过滤器中
                 userRegisterCachePenetrationBloomFilter.add(requestParam.getUsername());
                 // 创建默认分组
-                groupService.saveGroup(new ShortLinkGroupSaveReqDTO("默认分组"));
+                groupService.saveGroup(new ShortLinkGroupSaveReqDTO("默认分组"), requestParam.getUsername());
             } else {
                 throw new ClientException(UserErrorCodeEnum.USERNAME_EXISTED);
             }
