@@ -1,7 +1,9 @@
 package com.supergotta.shortlink.project.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.supergotta.shortlink.project.common.exception.ServiceException;
 import com.supergotta.shortlink.project.dao.entity.ShortLinkDO;
@@ -9,6 +11,7 @@ import com.supergotta.shortlink.project.dao.mapper.ShortLinkMapper;
 import com.supergotta.shortlink.project.dto.req.ShortLinkCreateReqDTO;
 import com.supergotta.shortlink.project.dto.req.ShortLinkPageReqDTO;
 import com.supergotta.shortlink.project.dto.resp.ShortLinkCreateRespDTO;
+import com.supergotta.shortlink.project.dto.resp.ShortLinkGroupCountQueryRespDTO;
 import com.supergotta.shortlink.project.dto.resp.ShortLinkPageRespDTO;
 import com.supergotta.shortlink.project.service.ShortLinkService;
 import com.supergotta.shortlink.project.util.HashUtil;
@@ -17,6 +20,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RBloomFilter;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.Map;
 
 
 /**
@@ -41,7 +47,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
             if (generateCount > 10) {
                 throw new ServiceException("短链接频繁生成, 请稍后再尝试");
             }
-            if (!shortUriCreateCachePenetrationBloomFilter.contains(shortLinkSuffix)){
+            if (!shortUriCreateCachePenetrationBloomFilter.contains(shortLinkSuffix)) {
                 //该短链接还没有创建过
                 break;
             }
@@ -63,7 +69,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         } catch (DuplicateKeyException e) {
             //当布隆过滤器误判时, 会导致短链接重复入库, 这时候上面的insert语句会抛出这个异常
             ShortLinkDO one = lambdaQuery().eq(ShortLinkDO::getShortUri, shortLinkSuffix).one();
-            if (one != null){
+            if (one != null) {
                 log.warn("短链接:{} 重复入库", shortLinkDO.getFullShortUrl());
                 throw new ServiceException("短链接生成重复");
             }
@@ -80,12 +86,23 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
 
     @Override
     public IPage<ShortLinkPageRespDTO> pageShortLink(ShortLinkPageReqDTO shortLinkPageReqDTO) {
-         IPage<ShortLinkDO> page = lambdaQuery()
-                 .eq(ShortLinkDO::getGid, shortLinkPageReqDTO.getGid())
-                 .eq(ShortLinkDO::getEnableStatus, 0)
-                 .eq(ShortLinkDO::getDelFlag, 0)
-                 .page(shortLinkPageReqDTO);
+        IPage<ShortLinkDO> page = lambdaQuery()
+                .eq(ShortLinkDO::getGid, shortLinkPageReqDTO.getGid())
+                .eq(ShortLinkDO::getEnableStatus, 0)
+                .eq(ShortLinkDO::getDelFlag, 0)
+                .page(shortLinkPageReqDTO);
 
         return page.convert(each -> BeanUtil.toBean(each, ShortLinkPageRespDTO.class));
+    }
+
+    @Override
+    public List<ShortLinkGroupCountQueryRespDTO> listGroupShortLinkCount(List<String> gids) {
+        QueryWrapper<ShortLinkDO> wrapper = Wrappers.query(new ShortLinkDO())
+                .select("gid as gid", "count(*) as shortLinkCount")
+                .in("gid", gids)
+                .eq("enable_status", 0)
+                .groupBy("gid");
+        List<Map<String, Object>> shortLinkList = baseMapper.selectMaps(wrapper);
+        return BeanUtil.copyToList(shortLinkList, ShortLinkGroupCountQueryRespDTO.class);
     }
 }

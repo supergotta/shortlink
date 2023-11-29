@@ -6,7 +6,10 @@ import com.supergotta.shortlink.project.dao.entity.ShortLinkDO;
 import com.supergotta.shortlink.project.dto.req.ShortLinkCreateReqDTO;
 import com.supergotta.shortlink.project.dto.req.ShortLinkPageReqDTO;
 import com.supergotta.shortlink.project.dto.resp.ShortLinkCreateRespDTO;
+import com.supergotta.shortlink.project.dto.resp.ShortLinkGroupCountQueryRespDTO;
 import com.supergotta.shortlink.project.dto.resp.ShortLinkPageRespDTO;
+
+import java.util.List;
 
 /**
  * 短链接服务层接口
@@ -26,4 +29,11 @@ public interface ShortLinkService extends IService<ShortLinkDO> {
      * @return 查询结果
      */
     IPage<ShortLinkPageRespDTO> pageShortLink(ShortLinkPageReqDTO shortLinkPageReqDTO);
+
+    /**
+     * 查询多个分组内短链接数量
+     * @param gids 分组标识的集合
+     * @return 分组内短链接数量的集合
+     */
+    List<ShortLinkGroupCountQueryRespDTO> listGroupShortLinkCount(List<String> gids);
 }

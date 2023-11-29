@@ -6,10 +6,13 @@ import com.supergotta.shortlink.project.common.convention.result.Results;
 import com.supergotta.shortlink.project.dto.req.ShortLinkCreateReqDTO;
 import com.supergotta.shortlink.project.dto.req.ShortLinkPageReqDTO;
 import com.supergotta.shortlink.project.dto.resp.ShortLinkCreateRespDTO;
+import com.supergotta.shortlink.project.dto.resp.ShortLinkGroupCountQueryRespDTO;
 import com.supergotta.shortlink.project.dto.resp.ShortLinkPageRespDTO;
 import com.supergotta.shortlink.project.service.ShortLinkService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 /**
  * 短链接控制层
@@ -41,6 +44,14 @@ public class ShortLinkController {
         shortLinkPageReqDTO.setCountId(current);
         shortLinkPageReqDTO.setSize(Long.parseLong(size));
         return Results.success(shortLinkService.pageShortLink(shortLinkPageReqDTO));
+    }
+
+    /**
+     * 查询短链接数量
+     */
+    @GetMapping("/api/short-link/v1/count")
+    public Result<List<ShortLinkGroupCountQueryRespDTO>> listGroupShortLinkCount(@RequestParam("gids") List<String> gids){
+        return Results.success(shortLinkService.listGroupShortLinkCount(gids));
     }
 
 }

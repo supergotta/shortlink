@@ -47,7 +47,6 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, GroupDO> implemen
 
     @Override
     public List<ShortLinkGroupReqDTO> listGroup() {
-        // TODO 获取用户名
         String username = UserContext.getUsername();
 
         List<GroupDO> groupList = lambdaQuery()
