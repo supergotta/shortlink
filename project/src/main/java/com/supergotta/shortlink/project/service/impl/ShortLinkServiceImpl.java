@@ -1,11 +1,13 @@
 package com.supergotta.shortlink.project.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.supergotta.shortlink.project.common.constant.RedisKeyConstant;
 import com.supergotta.shortlink.project.common.enums.ValidDateType;
 import com.supergotta.shortlink.project.common.exception.ServiceException;
 import com.supergotta.shortlink.project.dao.entity.ShortLinkDO;
@@ -25,7 +27,10 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RBloomFilter;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -43,6 +48,8 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
 
     private final RBloomFilter<String> shortUriCreateCachePenetrationBloomFilter;
     private final ShortLinkGotoMapper shortLinkGotoMapper;
+    private final StringRedisTemplate stringRedisTemplate;
+    private final RedissonClient redissonClient;
 
     @Override
     public ShortLinkCreateRespDTO createShortLink(ShortLinkCreateReqDTO shortLinkCreateReqDTO) {
@@ -122,13 +129,13 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
     public void updateShortLink(ShortLinkUpdateReqDTO shortLinkUpdateReqDTO) {
         ShortLinkDO shortLinkDO = BeanUtil.copyProperties(shortLinkUpdateReqDTO, ShortLinkDO.class);
         // 判断有效期类型, 如果是永久有效的, 那么需要额外将被更新数据的valid_date设为null
-        if (shortLinkUpdateReqDTO.getValidDateType() == ValidDateType.PERMANENT.getType()){
+        if (shortLinkUpdateReqDTO.getValidDateType() == ValidDateType.PERMANENT.getType()) {
             boolean isSuccess = lambdaUpdate()
                     .eq(ShortLinkDO::getGid, shortLinkUpdateReqDTO.getGid())
                     .eq(ShortLinkDO::getFullShortUrl, shortLinkUpdateReqDTO.getFullShortUrl())
                     .set(ShortLinkDO::getValidDate, null)
                     .update(shortLinkDO);
-        }else {
+        } else {
             boolean isSuccess = lambdaUpdate()
                     .eq(ShortLinkDO::getGid, shortLinkUpdateReqDTO.getGid())
                     .eq(ShortLinkDO::getFullShortUrl, shortLinkUpdateReqDTO.getFullShortUrl())
@@ -143,32 +150,65 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         //1. 通过t_link_goto表获取gid
         //1.1 获取完成的shortUrl
         String fullShortUrl = request.getServerName() + "/" + shortUri;
-        //1.2 创建t_link_goto表的查询条件
-        LambdaQueryWrapper<ShortLinkGotoDO> wrapper = Wrappers.lambdaQuery(ShortLinkGotoDO.class)
-                .eq(ShortLinkGotoDO::getFullShortLink, fullShortUrl);
-        //1.3 查询t_link_goto表
-        ShortLinkGotoDO shortLinkGotoDO = shortLinkGotoMapper.selectOne(wrapper);
-        if (shortLinkGotoDO == null){
-            //此处需要进行封控
-            return;
-        }
 
-        //2. 拿到gid后, 用gid查询短链接对应的原始链接
-        ShortLinkDO shortLinkDO = lambdaQuery()
-                .eq(ShortLinkDO::getGid, shortLinkGotoDO.getGid())
-                .eq(ShortLinkDO::getFullShortUrl, fullShortUrl)
-                .eq(ShortLinkDO::getDelFlag, 0)
-                .eq(ShortLinkDO::getEnableStatus, 0)
-                .one();
-        if (shortLinkDO == null){
-            //需要进行封控
+        // 解决缓存穿透问题, 首先查看redis缓存中是否有这个链接
+        String originalUrl = stringRedisTemplate.opsForValue().get(RedisKeyConstant.GOTO_SHORT_LINK_KRY + fullShortUrl);
+        if (StrUtil.isNotBlank(originalUrl)) {
+            // 如果查到了这个链接
+            try {
+                response.sendRedirect(originalUrl);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
             return;
         }
-        // 正常情况我们将响应重定向到刚刚的查询结果
+        // 如果没有查到这个链接, 说明redis中这个链接失效了, 这里要将链接重新加入缓存, 然后注意使用分布式锁防止大量请求涌入数据库
+        RLock redissonLock = redissonClient.getLock(RedisKeyConstant.LOCK_GOTO_SHORT_LINK_KEY + fullShortUrl);
+        redissonLock.tryLock();
         try {
-            response.sendRedirect(shortLinkDO.getOriginUrl());
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+            // 双重检验
+            originalUrl = stringRedisTemplate.opsForValue().get(RedisKeyConstant.GOTO_SHORT_LINK_KRY + fullShortUrl);
+            if (StrUtil.isNotBlank(originalUrl)) {
+                // 如果查到了这个链接
+                try {
+                    response.sendRedirect(originalUrl);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+                return;
+            }
+            // 如果还是没有拿到这个链接, 拿到锁的进程去查数据库并存到Redis中
+            //1.2 创建t_link_goto表的查询条件
+            LambdaQueryWrapper<ShortLinkGotoDO> wrapper = Wrappers.lambdaQuery(ShortLinkGotoDO.class)
+                    .eq(ShortLinkGotoDO::getFullShortLink, fullShortUrl);
+            //1.3 查询t_link_goto表
+            ShortLinkGotoDO shortLinkGotoDO = shortLinkGotoMapper.selectOne(wrapper);
+            if (shortLinkGotoDO == null) {
+                //此处需要进行封控
+                return;
+            }
+
+            //2. 拿到gid后, 用gid查询短链接对应的原始链接
+            ShortLinkDO shortLinkDO = lambdaQuery()
+                    .eq(ShortLinkDO::getGid, shortLinkGotoDO.getGid())
+                    .eq(ShortLinkDO::getFullShortUrl, fullShortUrl)
+                    .eq(ShortLinkDO::getDelFlag, 0)
+                    .eq(ShortLinkDO::getEnableStatus, 0)
+                    .one();
+            if (shortLinkDO == null) {
+                //需要进行封控
+                return;
+            }
+            // 正常情况我们将响应重定向到刚刚的查询结果
+            try {
+                stringRedisTemplate.opsForValue().set(RedisKeyConstant.GOTO_SHORT_LINK_KRY + fullShortUrl, shortLinkDO.getOriginUrl());
+                response.sendRedirect(shortLinkDO.getOriginUrl());
+                return;
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }finally {
+            redissonLock.unlock();
         }
     }
 }
