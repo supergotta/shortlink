@@ -22,6 +22,6 @@ public class LinkUtil {
             return ShortLinkConstant.DEFAULT_CACHE_EXPIRATION;
         }
         // 说明为有限期的date
-        return DateUtil.between(new Date(), validDate, DateUnit.MS)
+        return DateUtil.between(new Date(), validDate, DateUnit.MS);
     }
 }

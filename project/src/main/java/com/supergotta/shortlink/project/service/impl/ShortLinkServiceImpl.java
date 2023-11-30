@@ -35,6 +35,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -96,7 +97,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
             }
         }
         // 缓存预热
-        stringRedisTemplate.opsForValue().set(shortLinkDO.getFullShortUrl(),
+        stringRedisTemplate.opsForValue().set(RedisKeyConstant.GOTO_SHORT_LINK_KRY + shortLinkDO.getFullShortUrl(),
                 originUrl,
                 LinkUtil.getLinkCacheValidDate(shortLinkCreateReqDTO.getValidDate()),
                 TimeUnit.MILLISECONDS
@@ -227,9 +228,19 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                 //需要进行封控
                 return;
             }
-            // 正常情况我们将响应重定向到刚刚的查询结果
+            // 走到这一步说明缓存确实缺少了数据库应有的数据, 我们将该数据补充到缓存
             try {
-                stringRedisTemplate.opsForValue().set(RedisKeyConstant.GOTO_SHORT_LINK_KRY + fullShortUrl, shortLinkDO.getOriginUrl());
+                // 补充前先判断这条链接是否过期
+                if (shortLinkDO.getValidDate() != null && shortLinkDO.getValidDate().before(new Date())){
+                    // 如果过期了, 我们将该链接按照空链接来处理, 进行空值存储
+                    stringRedisTemplate.opsForValue().set(RedisKeyConstant.GOTO_IS_NULL_SHORT_LINK_KEY + fullShortUrl, "-", 30, TimeUnit.SECONDS);
+                    return;
+                }
+                stringRedisTemplate.opsForValue().set(RedisKeyConstant.GOTO_SHORT_LINK_KRY + fullShortUrl,
+                        shortLinkDO.getOriginUrl(),
+                        LinkUtil.getLinkCacheValidDate(shortLinkDO.getValidDate()),
+                        TimeUnit.MILLISECONDS
+                );
                 response.sendRedirect(shortLinkDO.getOriginUrl());
                 return;
             } catch (IOException e) {
