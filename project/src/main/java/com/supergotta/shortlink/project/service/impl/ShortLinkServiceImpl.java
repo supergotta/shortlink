@@ -22,6 +22,7 @@ import com.supergotta.shortlink.project.dto.resp.ShortLinkGroupCountQueryRespDTO
 import com.supergotta.shortlink.project.dto.resp.ShortLinkPageRespDTO;
 import com.supergotta.shortlink.project.service.ShortLinkService;
 import com.supergotta.shortlink.project.util.HashUtil;
+import com.supergotta.shortlink.project.util.LinkUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +37,7 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 
 /**
@@ -93,6 +95,12 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                 throw new ServiceException("短链接生成重复");
             }
         }
+        // 缓存预热
+        stringRedisTemplate.opsForValue().set(shortLinkDO.getFullShortUrl(),
+                originUrl,
+                LinkUtil.getLinkCacheValidDate(shortLinkCreateReqDTO.getValidDate()),
+                TimeUnit.MILLISECONDS
+        );
         //将刚刚生成的短链接添加到布隆过滤器
         shortUriCreateCachePenetrationBloomFilter.add(shortLinkDO.getFullShortUrl());
         //返回响应信息
@@ -151,10 +159,10 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         //1.1 获取完成的shortUrl
         String fullShortUrl = request.getServerName() + "/" + shortUri;
 
-        // 解决缓存穿透问题, 首先查看redis缓存中是否有这个链接
+        // _1.1 解决缓存穿透问题, 首先查看redis缓存中是否有这个链接
         String originalUrl = stringRedisTemplate.opsForValue().get(RedisKeyConstant.GOTO_SHORT_LINK_KRY + fullShortUrl);
         if (StrUtil.isNotBlank(originalUrl)) {
-            // 如果查到了这个链接
+            // _1.2 如果查到了这个链接
             try {
                 response.sendRedirect(originalUrl);
             } catch (IOException e) {
@@ -162,7 +170,25 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
             }
             return;
         }
-        // 如果没有查到这个链接, 说明redis中这个链接失效了, 这里要将链接重新加入缓存, 然后注意使用分布式锁防止大量请求涌入数据库
+        // _2.1 如果没有查到这个链接, 说明redis中这个链接失效了, 这里要将链接重新加入缓存, 然后注意使用分布式锁防止大量请求涌入数据库
+        // _2.2 首先查询布隆过滤器中是否存在这个fullShortLink
+        if (!shortUriCreateCachePenetrationBloomFilter.contains(fullShortUrl)){
+            // _2.3 如果布隆过滤器判断没有这个fullShortLink, 则直接返回(但是这个布隆过滤器也有误判的情况, 比如说不存在的误判成存在了, 那么下面就是解决这个问题的)
+            // 直接返回
+            return;
+        }
+
+        // _3.1 如果布隆过滤器告诉你有这个链接的话, 那么我们首先排查是否是布隆过滤器误判了
+        // _3.1 如果误判了, 也就是说数据库确实没有这个链接, 我们采用存储空值到Redis的方式进行规避后续的恶意查询攻击
+        // _3.1.1 先判断在Redis中是否存在这个链接对应的空值
+        String isNull = stringRedisTemplate.opsForValue().get(RedisKeyConstant.GOTO_IS_NULL_SHORT_LINK_KEY + fullShortUrl);
+        if (StrUtil.isNotBlank(isNull)){
+            // _3.1.2 如果有这个链接对应的空值, 说明数据库没有这个链接, 则直接返回
+            return;
+        }
+
+        // _3.2 如果布隆过滤器表示存在, 同时空值列表里没有这个链接, 说明第一次遇到这个链接的请求
+        // _3.2.1我们使用分布式锁查询数据库
         RLock redissonLock = redissonClient.getLock(RedisKeyConstant.LOCK_GOTO_SHORT_LINK_KEY + fullShortUrl);
         redissonLock.tryLock();
         try {
@@ -185,6 +211,8 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
             ShortLinkGotoDO shortLinkGotoDO = shortLinkGotoMapper.selectOne(wrapper);
             if (shortLinkGotoDO == null) {
                 //此处需要进行封控
+                // _3.2.2 说明数据库就没有这条记录, 我们按照前面的约定, 在redis中对应存储空值, 这个空值设定为30s
+                stringRedisTemplate.opsForValue().set(RedisKeyConstant.GOTO_IS_NULL_SHORT_LINK_KEY + fullShortUrl, "-", 30, TimeUnit.SECONDS);
                 return;
             }
 
