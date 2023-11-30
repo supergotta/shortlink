@@ -3,6 +3,7 @@ package com.supergotta.shortlink.admin.remote;
 import cn.hutool.http.HttpUtil;
 import com.alibaba.fastjson.JSON;
 import com.supergotta.shortlink.admin.remote.dto.req.ShortLinkCreateReqDTO;
+import com.supergotta.shortlink.admin.remote.dto.req.ShortLinkUpdateReqDTO;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.HashMap;
@@ -52,4 +53,10 @@ public interface ShortLinkRemoteService {
         return response;
     }
 
+    /**
+     * 修改短链接
+     */
+    default void updateShortLink(ShortLinkUpdateReqDTO shortLinkUpdateReqDTO){
+        String post = HttpUtil.post("http://127.0.0.1:8001/api/short-link/v1/update", JSON.toJSONString(shortLinkUpdateReqDTO));
+    }
 }

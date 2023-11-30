@@ -1,7 +1,10 @@
 package com.supergotta.shortlink.admin.controller;
 
+import com.supergotta.shortlink.admin.common.convention.result.Result;
+import com.supergotta.shortlink.admin.common.convention.result.Results;
 import com.supergotta.shortlink.admin.remote.ShortLinkRemoteService;
 import com.supergotta.shortlink.admin.remote.dto.req.ShortLinkCreateReqDTO;
+import com.supergotta.shortlink.admin.remote.dto.req.ShortLinkUpdateReqDTO;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -28,5 +31,14 @@ public class ShortLinkController {
             @RequestParam("current") String current,
             @RequestParam("size") String size){
         return shortLinkRemoteService.pageShortLink(gid, current, size);
+    }
+
+    /**
+     * 修改短链接
+     */
+    @PostMapping("/api/short-link/admin/v1/update")
+    public Result<Void> updateShortLink(@RequestBody ShortLinkUpdateReqDTO shortLinkUpdateReqDTO){
+        shortLinkRemoteService.updateShortLink(shortLinkUpdateReqDTO);
+        return Results.success();
     }
 }

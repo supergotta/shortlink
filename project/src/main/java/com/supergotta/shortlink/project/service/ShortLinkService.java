@@ -5,9 +5,12 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.supergotta.shortlink.project.dao.entity.ShortLinkDO;
 import com.supergotta.shortlink.project.dto.req.ShortLinkCreateReqDTO;
 import com.supergotta.shortlink.project.dto.req.ShortLinkPageReqDTO;
+import com.supergotta.shortlink.project.dto.req.ShortLinkUpdateReqDTO;
 import com.supergotta.shortlink.project.dto.resp.ShortLinkCreateRespDTO;
 import com.supergotta.shortlink.project.dto.resp.ShortLinkGroupCountQueryRespDTO;
 import com.supergotta.shortlink.project.dto.resp.ShortLinkPageRespDTO;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 import java.util.List;
 
@@ -36,4 +39,18 @@ public interface ShortLinkService extends IService<ShortLinkDO> {
      * @return 分组内短链接数量的集合
      */
     List<ShortLinkGroupCountQueryRespDTO> listGroupShortLinkCount(List<String> gids);
+
+    /**
+     * 修改短链接
+     * @param shortLinkUpdateReqDTO 短链接修改请求对象
+     */
+    void updateShortLink(ShortLinkUpdateReqDTO shortLinkUpdateReqDTO);
+
+    /**
+     * 短链接跳转
+     * @param shortUri 短链接后缀
+     * @param request 请求
+     * @param response 响应
+     */
+    void restoreUrl(String shortUri, HttpServletRequest request, HttpServletResponse response);
 }
