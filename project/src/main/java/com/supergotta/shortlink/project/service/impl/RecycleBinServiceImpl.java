@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.supergotta.shortlink.project.common.constant.RedisKeyConstant;
 import com.supergotta.shortlink.project.dao.entity.ShortLinkDO;
 import com.supergotta.shortlink.project.dto.req.RecycleBinPageReqDTO;
+import com.supergotta.shortlink.project.dto.req.RecycleBinRecoverReqDTO;
 import com.supergotta.shortlink.project.dto.req.RecycleBinSaveReqDTO;
 import com.supergotta.shortlink.project.dto.resp.ShortLinkPageRespDTO;
 import com.supergotta.shortlink.project.service.RecycleBinService;
@@ -48,5 +49,22 @@ public class RecycleBinServiceImpl implements RecycleBinService {
                 .page(recycleBinPageReqDTO);
 
         return page.convert(each -> BeanUtil.toBean(each, ShortLinkPageRespDTO.class));
+    }
+
+    @Override
+    public void recover(RecycleBinRecoverReqDTO recycleBinRecoverReqDTO) {
+        //1. 将数据库中对应的短链接的enable_state恢复为0
+        boolean isSuccess = shortLinkService.lambdaUpdate()
+                .eq(ShortLinkDO::getFullShortUrl, recycleBinRecoverReqDTO.getFullShortUrl())
+                .eq(ShortLinkDO::getGid, recycleBinRecoverReqDTO.getGid())
+                .eq(ShortLinkDO::getEnableStatus, 1)
+                .eq(ShortLinkDO::getDelFlag, 0)
+                .set(ShortLinkDO::getEnableStatus, 0)
+                .update();
+        log.info("更新状态为:{}", isSuccess);
+
+        //2. 将redis中, 该短链接对应的空值删除
+        stringRedisTemplate.delete(RedisKeyConstant.GOTO_IS_NULL_SHORT_LINK_KEY + recycleBinRecoverReqDTO.getFullShortUrl());
+
     }
 }

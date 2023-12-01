@@ -231,7 +231,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
             if (shortLinkGotoDO == null) {
                 //此处需要进行封控
                 // _3.2.2 说明数据库就没有这条记录, 我们按照前面的约定, 在redis中对应存储空值, 这个空值设定为30s
-                stringRedisTemplate.opsForValue().set(RedisKeyConstant.GOTO_IS_NULL_SHORT_LINK_KEY + fullShortUrl, "-", 30, TimeUnit.SECONDS);
+                stringRedisTemplate.opsForValue().set(RedisKeyConstant.GOTO_IS_NULL_SHORT_LINK_KEY + fullShortUrl, "-", 10, TimeUnit.MINUTES);
                 response.sendRedirect("/page/notfound");
                 return;
             }
