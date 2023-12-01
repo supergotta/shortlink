@@ -1,8 +1,8 @@
 package com.supergotta.shortlink.project.service;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.supergotta.shortlink.project.dto.req.RecycleBinPageReqDTO;
 import com.supergotta.shortlink.project.dto.req.RecycleBinSaveReqDTO;
-import com.supergotta.shortlink.project.dto.req.ShortLinkPageReqDTO;
 import com.supergotta.shortlink.project.dto.resp.ShortLinkPageRespDTO;
 
 public interface RecycleBinService {
@@ -18,5 +18,5 @@ public interface RecycleBinService {
      * @param shortLinkPageReqDTO 分页查询短链接请求对象
      * @return 查询结果
      */
-    IPage<ShortLinkPageRespDTO> pageRecycleBin(ShortLinkPageReqDTO shortLinkPageReqDTO);
+    IPage<ShortLinkPageRespDTO> pageRecycleBin(RecycleBinPageReqDTO recycleBinPageReqDTO);
 }

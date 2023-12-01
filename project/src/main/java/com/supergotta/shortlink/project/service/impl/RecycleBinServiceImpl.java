@@ -4,8 +4,8 @@ import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.supergotta.shortlink.project.common.constant.RedisKeyConstant;
 import com.supergotta.shortlink.project.dao.entity.ShortLinkDO;
+import com.supergotta.shortlink.project.dto.req.RecycleBinPageReqDTO;
 import com.supergotta.shortlink.project.dto.req.RecycleBinSaveReqDTO;
-import com.supergotta.shortlink.project.dto.req.ShortLinkPageReqDTO;
 import com.supergotta.shortlink.project.dto.resp.ShortLinkPageRespDTO;
 import com.supergotta.shortlink.project.service.RecycleBinService;
 import com.supergotta.shortlink.project.service.ShortLinkService;
@@ -39,12 +39,13 @@ public class RecycleBinServiceImpl implements RecycleBinService {
     }
 
     @Override
-    public IPage<ShortLinkPageRespDTO> pageRecycleBin(ShortLinkPageReqDTO shortLinkPageReqDTO) {
+    public IPage<ShortLinkPageRespDTO> pageRecycleBin(RecycleBinPageReqDTO recycleBinPageReqDTO) {
+
         IPage<ShortLinkDO> page = shortLinkService.lambdaQuery()
-                .eq(ShortLinkDO::getGid, shortLinkPageReqDTO.getGid())
+                .in(ShortLinkDO::getGid, recycleBinPageReqDTO.getGid())
                 .eq(ShortLinkDO::getEnableStatus, 1)
                 .eq(ShortLinkDO::getDelFlag, 0)
-                .page(shortLinkPageReqDTO);
+                .page(recycleBinPageReqDTO);
 
         return page.convert(each -> BeanUtil.toBean(each, ShortLinkPageRespDTO.class));
     }
