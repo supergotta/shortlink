@@ -26,15 +26,22 @@ import com.supergotta.shortlink.project.util.LinkUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.select.Elements;
 import org.redisson.api.RBloomFilter;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -53,7 +60,9 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
     private final ShortLinkGotoMapper shortLinkGotoMapper;
     private final StringRedisTemplate stringRedisTemplate;
     private final RedissonClient redissonClient;
+    private final RestTemplate restTemplate;
 
+    @SneakyThrows
     @Override
     public ShortLinkCreateRespDTO createShortLink(ShortLinkCreateReqDTO shortLinkCreateReqDTO) {
         //通过工具类获取短链接的前缀
@@ -66,11 +75,12 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
             if (generateCount > 10) {
                 throw new ServiceException("短链接频繁生成, 请稍后再尝试");
             }
-            if (!shortUriCreateCachePenetrationBloomFilter.contains(shortLinkSuffix)) {
+            if (!shortUriCreateCachePenetrationBloomFilter.contains(shortLinkCreateReqDTO.getDomain() + "/" + shortLinkSuffix)) {
                 //该短链接还没有创建过
                 break;
             }
             //该短链接已经创建过了, 那么需要重新创建一个短链接
+            // TODO 更改更新逻辑, 这个时候的originUrl是拿不到图标的
             originUrl += System.currentTimeMillis();
             shortLinkSuffix = HashUtil.hashToBase62(originUrl);
             generateCount++;
@@ -84,6 +94,12 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         shortLinkDO.setEnableStatus(0);
         // 新建短链接的同时将短链接FullShortUrl和分组标识gid的关系存入Goto表中
         ShortLinkGotoDO shortLinkGotoDO = ShortLinkGotoDO.builder().FullShortLink(shortLinkDO.getFullShortUrl()).gid(shortLinkDO.getGid()).build();
+
+        // 获取originUrl的网站图标
+        String faviconUrl = getTitleAndFavicon(originUrl);
+        shortLinkDO.setFavicon(faviconUrl);
+
+
         //将得到的DO对象存入数据库中
         try {
             baseMapper.insert(shortLinkDO);
@@ -227,8 +243,10 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                     .eq(ShortLinkDO::getDelFlag, 0)
                     .eq(ShortLinkDO::getEnableStatus, 0)
                     .one();
-            if (shortLinkDO == null) {
-                //需要进行封控
+            if (shortLinkDO == null || (shortLinkDO.getValidDate() != null && shortLinkDO.getValidDate().before(new Date()))) {
+                //需要进行封控, 要么就是没有这条记录, 要么这条记录的enable_state为1, 要么这条记录过期了, 反正就是要存空值
+                stringRedisTemplate.opsForValue().set(RedisKeyConstant.GOTO_IS_NULL_SHORT_LINK_KEY + fullShortUrl, "-", 30, TimeUnit.SECONDS);
+                response.sendRedirect("/page/notfound");
                 return;
             }
             // 走到这一步说明缓存确实缺少了数据库应有的数据, 我们将该数据补充到缓存
@@ -253,5 +271,22 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         }finally {
             redissonLock.unlock();
         }
+    }
+
+    // TODO 完善图标和标题获取功能
+    private String getTitleAndFavicon(String url) throws IOException {
+        URL targetUrl = new URL(url);
+        HttpURLConnection connection = (HttpURLConnection) targetUrl.openConnection();
+        connection.setRequestMethod("GET");
+        connection.connect();
+        int responseCode = connection.getResponseCode();
+        if (responseCode == HttpURLConnection.HTTP_OK){
+            Document document = Jsoup.connect(url).get();
+            Elements faviconLink = document.select("link[rel~=(?i)^(shortcut )?icon]");
+            if (faviconLink != null){
+                return faviconLink.attr("abs:href");
+            }
+        }
+        return "";
     }
 }
