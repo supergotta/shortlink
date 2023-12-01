@@ -154,7 +154,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
     }
 
     @Override
-    public void restoreUrl(String shortUri, HttpServletRequest request, HttpServletResponse response) {
+    public void restoreUrl(String shortUri, HttpServletRequest request, HttpServletResponse response) throws IOException {
         // 由于t_link是根据gid进行分片, 所以在对当前短链接进行查询钱, 先获得短链接对应的gid
         //1. 通过t_link_goto表获取gid
         //1.1 获取完成的shortUrl
@@ -175,7 +175,8 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         // _2.2 首先查询布隆过滤器中是否存在这个fullShortLink
         if (!shortUriCreateCachePenetrationBloomFilter.contains(fullShortUrl)){
             // _2.3 如果布隆过滤器判断没有这个fullShortLink, 则直接返回(但是这个布隆过滤器也有误判的情况, 比如说不存在的误判成存在了, 那么下面就是解决这个问题的)
-            // 直接返回
+            // 重定向到404页面
+            response.sendRedirect("/page/notfound");
             return;
         }
 
@@ -185,6 +186,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         String isNull = stringRedisTemplate.opsForValue().get(RedisKeyConstant.GOTO_IS_NULL_SHORT_LINK_KEY + fullShortUrl);
         if (StrUtil.isNotBlank(isNull)){
             // _3.1.2 如果有这个链接对应的空值, 说明数据库没有这个链接, 则直接返回
+            response.sendRedirect("/page/notfound");
             return;
         }
 
@@ -214,6 +216,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                 //此处需要进行封控
                 // _3.2.2 说明数据库就没有这条记录, 我们按照前面的约定, 在redis中对应存储空值, 这个空值设定为30s
                 stringRedisTemplate.opsForValue().set(RedisKeyConstant.GOTO_IS_NULL_SHORT_LINK_KEY + fullShortUrl, "-", 30, TimeUnit.SECONDS);
+                response.sendRedirect("/page/notfound");
                 return;
             }
 
@@ -234,6 +237,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                 if (shortLinkDO.getValidDate() != null && shortLinkDO.getValidDate().before(new Date())){
                     // 如果过期了, 我们将该链接按照空链接来处理, 进行空值存储
                     stringRedisTemplate.opsForValue().set(RedisKeyConstant.GOTO_IS_NULL_SHORT_LINK_KEY + fullShortUrl, "-", 30, TimeUnit.SECONDS);
+                    response.sendRedirect("/page/notfound");
                     return;
                 }
                 stringRedisTemplate.opsForValue().set(RedisKeyConstant.GOTO_SHORT_LINK_KRY + fullShortUrl,
