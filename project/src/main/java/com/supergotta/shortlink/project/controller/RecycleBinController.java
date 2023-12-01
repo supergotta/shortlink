@@ -3,6 +3,7 @@ package com.supergotta.shortlink.project.controller;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.supergotta.shortlink.project.common.convention.result.Result;
 import com.supergotta.shortlink.project.common.convention.result.Results;
+import com.supergotta.shortlink.project.dto.req.RecycleBinDeleteReqDTO;
 import com.supergotta.shortlink.project.dto.req.RecycleBinPageReqDTO;
 import com.supergotta.shortlink.project.dto.req.RecycleBinRecoverReqDTO;
 import com.supergotta.shortlink.project.dto.req.RecycleBinSaveReqDTO;
@@ -50,6 +51,15 @@ public class RecycleBinController {
     @PutMapping("/api/short-link/v1/recycle-bin/recover")
     public Result<Void> recover(@RequestBody RecycleBinRecoverReqDTO recycleBinRecoverReqDTO){
         recycleBinService.recover(recycleBinRecoverReqDTO);
+        return Results.success();
+    }
+
+    /**
+     * 删除回收站中短链接
+     */
+    @DeleteMapping("/api/short-link/v1/recycle-bin/delete")
+    public Result<Void> delete(@RequestBody RecycleBinDeleteReqDTO recycleBinDeleteReqDTO){
+        recycleBinService.delete(recycleBinDeleteReqDTO);
         return Results.success();
     }
 }

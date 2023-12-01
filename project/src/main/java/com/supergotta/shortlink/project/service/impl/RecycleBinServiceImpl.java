@@ -1,9 +1,12 @@
 package com.supergotta.shortlink.project.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.supergotta.shortlink.project.common.constant.RedisKeyConstant;
 import com.supergotta.shortlink.project.dao.entity.ShortLinkDO;
+import com.supergotta.shortlink.project.dto.req.RecycleBinDeleteReqDTO;
 import com.supergotta.shortlink.project.dto.req.RecycleBinPageReqDTO;
 import com.supergotta.shortlink.project.dto.req.RecycleBinRecoverReqDTO;
 import com.supergotta.shortlink.project.dto.req.RecycleBinSaveReqDTO;
@@ -66,5 +69,18 @@ public class RecycleBinServiceImpl implements RecycleBinService {
         //2. 将redis中, 该短链接对应的空值删除
         stringRedisTemplate.delete(RedisKeyConstant.GOTO_IS_NULL_SHORT_LINK_KEY + recycleBinRecoverReqDTO.getFullShortUrl());
 
+    }
+
+    @Override
+    public void delete(RecycleBinDeleteReqDTO recycleBinDeleteReqDTO) {
+        // 删除数据库中数据
+        // TODO 这里用的是remove函数, 注意直接删掉了, 至于老师用的delete函数有没有简单地将del_flag赋值为1, 需要看看
+        LambdaQueryWrapper<ShortLinkDO> removeWrapper = Wrappers.lambdaQuery(ShortLinkDO.class)
+                .eq(ShortLinkDO::getGid, recycleBinDeleteReqDTO.getGid())
+                .eq(ShortLinkDO::getFullShortUrl, recycleBinDeleteReqDTO.getFullShortUrl())
+                .eq(ShortLinkDO::getEnableStatus, 1)
+                .eq(ShortLinkDO::getDelFlag, 0);
+        boolean isSuccess = shortLinkService.remove(removeWrapper);
+        log.info("删除状态为:{}", isSuccess);
     }
 }
