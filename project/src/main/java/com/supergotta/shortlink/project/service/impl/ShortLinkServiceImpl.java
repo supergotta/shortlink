@@ -74,6 +74,9 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
     private final LinkAccessStatsMapper linkAccessStatsMapper;
     private final LinkLocalStatsMapper linkLocalStatsMapper;
     private final LinkOsStatsMapper linkOsStatsMapper;
+    private final LinkBrowserStatsMapper linkBrowserStatsMapper;
+
+    private final Parser uaParser;
     private final RestTemplate restTemplate;
 
     @Value("${short-link.stats.local.amap-key}")
@@ -397,7 +400,6 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         // 1. 获取用户的操作系统
         String userAgentString = request.getHeader("User-Agent");
         // TODO 优化这里, 每次获取解析器时延很高
-        Parser uaParser = new Parser();
         Client c = uaParser.parse(userAgentString);
         String os = c.os.family;
 
@@ -406,5 +408,6 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
 
         // 开始更新浏览器数据统计
         String browser = c.userAgent.family;
+        linkBrowserStatsMapper.updateBrowserStats(fullShortUrl, gid, today, 1, browser);
     }
 }
