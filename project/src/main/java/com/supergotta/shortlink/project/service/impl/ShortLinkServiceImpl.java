@@ -16,6 +16,7 @@ import com.supergotta.shortlink.project.common.constant.RedisKeyConstant;
 import com.supergotta.shortlink.project.common.constant.ShortLinkConstant;
 import com.supergotta.shortlink.project.common.enums.ValidDateType;
 import com.supergotta.shortlink.project.common.exception.ServiceException;
+import com.supergotta.shortlink.project.dao.entity.LinkAccessLogsDO;
 import com.supergotta.shortlink.project.dao.entity.ShortLinkDO;
 import com.supergotta.shortlink.project.dao.entity.ShortLinkGotoDO;
 import com.supergotta.shortlink.project.dao.mapper.*;
@@ -75,6 +76,8 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
     private final LinkLocalStatsMapper linkLocalStatsMapper;
     private final LinkOsStatsMapper linkOsStatsMapper;
     private final LinkBrowserStatsMapper linkBrowserStatsMapper;
+    private final LinkAccessLogsMapper linkAccessLogsMapper;
+    private final LinkDeviceStatsMapper linkDeviceStatsMapper;
 
     private final Parser uaParser;
     private final RestTemplate restTemplate;
@@ -399,7 +402,6 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         // 开始更新OS数据统计
         // 1. 获取用户的操作系统
         String userAgentString = request.getHeader("User-Agent");
-        // TODO 优化这里, 每次获取解析器时延很高
         Client c = uaParser.parse(userAgentString);
         String os = c.os.family;
 
@@ -409,5 +411,21 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         // 开始更新浏览器数据统计
         String browser = c.userAgent.family;
         linkBrowserStatsMapper.updateBrowserStats(fullShortUrl, gid, today, 1, browser);
+
+        // 开始更新设备数据统计
+        // TODO 这里设别类型异常
+        String device = c.device.family;
+        linkDeviceStatsMapper.updateDeviceStats(fullShortUrl, gid, today, 1, device);
+
+        // 添加访问日志
+        LinkAccessLogsDO linkAccessLogsDO = LinkAccessLogsDO.builder()
+                .fullShortUrl(fullShortUrl)
+                .gid(gid)
+                .user(uvValue)
+                .browser(browser)
+                .os(os)
+                .ip(realIP)
+                .build();
+        linkAccessLogsMapper.insert(linkAccessLogsDO);
     }
 }
