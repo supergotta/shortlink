@@ -18,10 +18,7 @@ import com.supergotta.shortlink.project.common.enums.ValidDateType;
 import com.supergotta.shortlink.project.common.exception.ServiceException;
 import com.supergotta.shortlink.project.dao.entity.ShortLinkDO;
 import com.supergotta.shortlink.project.dao.entity.ShortLinkGotoDO;
-import com.supergotta.shortlink.project.dao.mapper.LinkAccessStatsMapper;
-import com.supergotta.shortlink.project.dao.mapper.LinkLocalStatsMapper;
-import com.supergotta.shortlink.project.dao.mapper.ShortLinkGotoMapper;
-import com.supergotta.shortlink.project.dao.mapper.ShortLinkMapper;
+import com.supergotta.shortlink.project.dao.mapper.*;
 import com.supergotta.shortlink.project.dto.req.ShortLinkCreateReqDTO;
 import com.supergotta.shortlink.project.dto.req.ShortLinkPageReqDTO;
 import com.supergotta.shortlink.project.dto.req.ShortLinkUpdateReqDTO;
@@ -48,6 +45,8 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import ua_parser.Client;
+import ua_parser.Parser;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
@@ -74,6 +73,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
     private final RedissonClient redissonClient;
     private final LinkAccessStatsMapper linkAccessStatsMapper;
     private final LinkLocalStatsMapper linkLocalStatsMapper;
+    private final LinkOsStatsMapper linkOsStatsMapper;
     private final RestTemplate restTemplate;
 
     @Value("${short-link.stats.local.amap-key}")
@@ -317,6 +317,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
     /**
      * 短链接访问统计
      */
+    @SneakyThrows
     private void shortLinkStats(String fullShortUrl, String gid, HttpServletRequest request, HttpServletResponse response) {
         // 初始化pv, uv, uip增量
         int pv = 1;
@@ -391,5 +392,19 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
 
         // 3. 更新数据库
         linkLocalStatsMapper.updateLocalStats(fullShortUrl, gid, today, 1, province, city, adcode, "中国");
+
+        // 开始更新OS数据统计
+        // 1. 获取用户的操作系统
+        String userAgentString = request.getHeader("User-Agent");
+        // TODO 优化这里, 每次获取解析器时延很高
+        Parser uaParser = new Parser();
+        Client c = uaParser.parse(userAgentString);
+        String os = c.os.family;
+
+        // 2. 更新数据库
+        linkOsStatsMapper.updateOsStats(fullShortUrl, gid, today, 1, os);
+
+        // 开始更新浏览器数据统计
+        String browser = c.userAgent.family;
     }
 }

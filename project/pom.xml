@@ -70,5 +70,12 @@
             <artifactId>jsoup</artifactId>
             <version>1.15.3</version>
         </dependency>
+
+        <dependency>
+            <groupId>com.github.ua-parser</groupId>
+            <artifactId>uap-java</artifactId>
+            <version>1.4.3</version> <!-- 确保使用最新的稳定版本 -->
+        </dependency>
+
     </dependencies>
 </project>
