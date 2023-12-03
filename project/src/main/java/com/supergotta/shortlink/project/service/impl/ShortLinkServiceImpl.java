@@ -4,17 +4,22 @@ import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.lang.UUID;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.http.HttpUtil;
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.supergotta.shortlink.project.common.constant.RedisKeyConstant;
+import com.supergotta.shortlink.project.common.constant.ShortLinkConstant;
 import com.supergotta.shortlink.project.common.enums.ValidDateType;
 import com.supergotta.shortlink.project.common.exception.ServiceException;
 import com.supergotta.shortlink.project.dao.entity.ShortLinkDO;
 import com.supergotta.shortlink.project.dao.entity.ShortLinkGotoDO;
 import com.supergotta.shortlink.project.dao.mapper.LinkAccessStatsMapper;
+import com.supergotta.shortlink.project.dao.mapper.LinkLocalStatsMapper;
 import com.supergotta.shortlink.project.dao.mapper.ShortLinkGotoMapper;
 import com.supergotta.shortlink.project.dao.mapper.ShortLinkMapper;
 import com.supergotta.shortlink.project.dto.req.ShortLinkCreateReqDTO;
@@ -38,6 +43,7 @@ import org.jsoup.select.Elements;
 import org.redisson.api.RBloomFilter;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -48,6 +54,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.time.LocalDate;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -66,7 +73,11 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
     private final StringRedisTemplate stringRedisTemplate;
     private final RedissonClient redissonClient;
     private final LinkAccessStatsMapper linkAccessStatsMapper;
+    private final LinkLocalStatsMapper linkLocalStatsMapper;
     private final RestTemplate restTemplate;
+
+    @Value("${short-link.stats.local.amap-key}")
+    private String statsLocalAmapKey;
 
     @SneakyThrows
     @Override
@@ -187,7 +198,12 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         if (StrUtil.isNotBlank(originalUrl)) {
             // _1.2 如果查到了这个链接
             try {
-                shortLinkStats(fullShortUrl, request, response);
+                // 查询此fullShortUrl对应的gid
+                LambdaQueryWrapper<ShortLinkGotoDO> wrapper = Wrappers.lambdaQuery(ShortLinkGotoDO.class)
+                        .eq(ShortLinkGotoDO::getFullShortLink, fullShortUrl);
+                ShortLinkGotoDO shortLinkGotoDO = shortLinkGotoMapper.selectOne(wrapper);
+                String gid = shortLinkGotoDO.getGid();
+                shortLinkStats(fullShortUrl, gid, request, response);
                 response.sendRedirect(originalUrl);
             } catch (IOException e) {
                 throw new RuntimeException(e);
@@ -301,7 +317,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
     /**
      * 短链接访问统计
      */
-    private void shortLinkStats(String fullShortUrl, HttpServletRequest request, HttpServletResponse response) {
+    private void shortLinkStats(String fullShortUrl, String gid, HttpServletRequest request, HttpServletResponse response) {
         // 初始化pv, uv, uip增量
         int pv = 1;
         int uv = 0;
@@ -358,12 +374,22 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         int weekday = DateUtil.dayOfWeek(new Date());
         LocalDate today = LocalDate.now();
 
-        // 查询此fullShortUrl对应的gid
-        LambdaQueryWrapper<ShortLinkGotoDO> wrapper = Wrappers.lambdaQuery(ShortLinkGotoDO.class)
-                .eq(ShortLinkGotoDO::getFullShortLink, fullShortUrl);
-        ShortLinkGotoDO shortLinkGotoDO = shortLinkGotoMapper.selectOne(wrapper);
-        String gid = shortLinkGotoDO.getGid();
-
         linkAccessStatsMapper.updateStats(fullShortUrl, gid, today, pv, uv, uip, hour, weekday);
+
+        // 开始更新Local的数据统计
+        // 1. 调用高德地图API
+        Map<String, Object> localParam = new HashMap<>();
+        localParam.put("key", statsLocalAmapKey);
+        localParam.put("ip", realIP);
+        String loaclResultJSON = HttpUtil.get(ShortLinkConstant.AMAP_REMOTE_URL, localParam);
+
+        // 2. 解析API返回结果
+        JSONObject localResultObj = JSON.parseObject(loaclResultJSON);
+        String province = localResultObj.getString("province").equals("[]")? "未知" : localResultObj.getString("province");
+        String city = localResultObj.getString("city").equals("[]")? "未知" : localResultObj.getString("city");
+        String adcode = localResultObj.getString("adcode").equals("[]")? "未知" : localResultObj.getString("adcode");
+
+        // 3. 更新数据库
+        linkLocalStatsMapper.updateLocalStats(fullShortUrl, gid, today, 1, province, city, adcode, "中国");
     }
 }
