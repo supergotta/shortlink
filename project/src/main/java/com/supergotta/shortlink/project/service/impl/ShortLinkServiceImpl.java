@@ -1,6 +1,8 @@
 package com.supergotta.shortlink.project.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.date.DateUtil;
+import cn.hutool.core.lang.UUID;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
@@ -12,6 +14,7 @@ import com.supergotta.shortlink.project.common.enums.ValidDateType;
 import com.supergotta.shortlink.project.common.exception.ServiceException;
 import com.supergotta.shortlink.project.dao.entity.ShortLinkDO;
 import com.supergotta.shortlink.project.dao.entity.ShortLinkGotoDO;
+import com.supergotta.shortlink.project.dao.mapper.LinkAccessStatsMapper;
 import com.supergotta.shortlink.project.dao.mapper.ShortLinkGotoMapper;
 import com.supergotta.shortlink.project.dao.mapper.ShortLinkMapper;
 import com.supergotta.shortlink.project.dto.req.ShortLinkCreateReqDTO;
@@ -23,6 +26,7 @@ import com.supergotta.shortlink.project.dto.resp.ShortLinkPageRespDTO;
 import com.supergotta.shortlink.project.service.ShortLinkService;
 import com.supergotta.shortlink.project.util.HashUtil;
 import com.supergotta.shortlink.project.util.LinkUtil;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -42,6 +46,7 @@ import org.springframework.web.client.RestTemplate;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.time.LocalDate;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -60,6 +65,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
     private final ShortLinkGotoMapper shortLinkGotoMapper;
     private final StringRedisTemplate stringRedisTemplate;
     private final RedissonClient redissonClient;
+    private final LinkAccessStatsMapper linkAccessStatsMapper;
     private final RestTemplate restTemplate;
 
     @SneakyThrows
@@ -181,15 +187,17 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         if (StrUtil.isNotBlank(originalUrl)) {
             // _1.2 如果查到了这个链接
             try {
+                shortLinkStats(fullShortUrl, request, response);
                 response.sendRedirect(originalUrl);
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
+            // 统计数据
             return;
         }
         // _2.1 如果没有查到这个链接, 说明redis中这个链接失效了, 这里要将链接重新加入缓存, 然后注意使用分布式锁防止大量请求涌入数据库
         // _2.2 首先查询布隆过滤器中是否存在这个fullShortLink
-        if (!shortUriCreateCachePenetrationBloomFilter.contains(fullShortUrl)){
+        if (!shortUriCreateCachePenetrationBloomFilter.contains(fullShortUrl)) {
             // _2.3 如果布隆过滤器判断没有这个fullShortLink, 则直接返回(但是这个布隆过滤器也有误判的情况, 比如说不存在的误判成存在了, 那么下面就是解决这个问题的)
             // 重定向到404页面
             response.sendRedirect("/page/notfound");
@@ -200,7 +208,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         // _3.1 如果误判了, 也就是说数据库确实没有这个链接, 我们采用存储空值到Redis的方式进行规避后续的恶意查询攻击
         // _3.1.1 先判断在Redis中是否存在这个链接对应的空值
         String isNull = stringRedisTemplate.opsForValue().get(RedisKeyConstant.GOTO_IS_NULL_SHORT_LINK_KEY + fullShortUrl);
-        if (StrUtil.isNotBlank(isNull)){
+        if (StrUtil.isNotBlank(isNull)) {
             // _3.1.2 如果有这个链接对应的空值, 说明数据库没有这个链接, 则直接返回
             response.sendRedirect("/page/notfound");
             return;
@@ -252,7 +260,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
             // 走到这一步说明缓存确实缺少了数据库应有的数据, 我们将该数据补充到缓存
             try {
                 // 补充前先判断这条链接是否过期
-                if (shortLinkDO.getValidDate() != null && shortLinkDO.getValidDate().before(new Date())){
+                if (shortLinkDO.getValidDate() != null && shortLinkDO.getValidDate().before(new Date())) {
                     // 如果过期了, 我们将该链接按照空链接来处理, 进行空值存储
                     stringRedisTemplate.opsForValue().set(RedisKeyConstant.GOTO_IS_NULL_SHORT_LINK_KEY + fullShortUrl, "-", 30, TimeUnit.SECONDS);
                     response.sendRedirect("/page/notfound");
@@ -268,7 +276,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
-        }finally {
+        } finally {
             redissonLock.unlock();
         }
     }
@@ -280,13 +288,82 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         connection.setRequestMethod("GET");
         connection.connect();
         int responseCode = connection.getResponseCode();
-        if (responseCode == HttpURLConnection.HTTP_OK){
+        if (responseCode == HttpURLConnection.HTTP_OK) {
             Document document = Jsoup.connect(url).get();
             Elements faviconLink = document.select("link[rel~=(?i)^(shortcut )?icon]");
-            if (faviconLink != null){
+            if (faviconLink != null) {
                 return faviconLink.attr("abs:href");
             }
         }
         return "";
+    }
+
+    /**
+     * 短链接访问统计
+     */
+    private void shortLinkStats(String fullShortUrl, HttpServletRequest request, HttpServletResponse response) {
+        // 初始化pv, uv, uip增量
+        int pv = 1;
+        int uv = 0;
+        int uip = 0;
+
+        // 通过判断cookie情况确认uv增量
+        // 1. 判断当前请求的cookie中是否包含uv信息, 如果有的话取出来
+        Cookie[] cookies = request.getCookies();
+        String uvValue = "";
+        if (cookies != null){
+            for (Cookie cookie : cookies) {
+                if (cookie.getName().equals("uv")){
+                    uvValue = cookie.getValue();
+                    break;
+                }
+            }
+        }
+
+        // 2. 如果不存在uv信息, 则通过UUID创建对应的uvValue, 并放入cookie中
+        if (uvValue.isEmpty()){
+            uvValue = UUID.fastUUID().toString();
+            Cookie uvCookie = new Cookie("uv", uvValue);
+            uvCookie.setMaxAge(60 * 60 * 24 * 30);
+            uvCookie.setPath(StrUtil.sub(fullShortUrl, fullShortUrl.indexOf("/"), fullShortUrl.length()));
+            response.addCookie(uvCookie);
+        }
+
+        // 3. 判断这个uvValue是否存在于redis的set中, 如果不存在的话, 则将uv设为1并添加入redis
+        Long addSuccess = stringRedisTemplate.opsForSet().add("short-link:stats:uv:" + fullShortUrl, uvValue);
+        if (addSuccess != null && addSuccess > 0){
+            // 4. 当前uv不存在redis中, uv增量赋值为1
+            uv = 1;
+        }
+
+        // 通过判断真实IP确认uip增量
+        // 1. 取出真实IP
+        String realIP = "";
+        String xForwardedForHeader = request.getHeader("X-Forwarded-For");
+        if (xForwardedForHeader == null){
+            realIP = request.getRemoteAddr();
+        }else {
+            realIP = xForwardedForHeader.split(",")[0];
+        }
+
+        // 2. 根据真实IP在redis中的情况判断uip增量
+        addSuccess = stringRedisTemplate.opsForSet().add("short-link:stats:uip:" + fullShortUrl, realIP);
+        if (addSuccess != null && addSuccess > 0){
+            // 4. 当前ip不存在redis中, uip增量赋值为1
+            uip = 1;
+        }
+
+        // 确认当前时间为本周第几天的第几个小时
+        int hour = DateUtil.hour(new Date(), true);
+        int weekday = DateUtil.dayOfWeek(new Date());
+        LocalDate today = LocalDate.now();
+
+        // 查询此fullShortUrl对应的gid
+        LambdaQueryWrapper<ShortLinkGotoDO> wrapper = Wrappers.lambdaQuery(ShortLinkGotoDO.class)
+                .eq(ShortLinkGotoDO::getFullShortLink, fullShortUrl);
+        ShortLinkGotoDO shortLinkGotoDO = shortLinkGotoMapper.selectOne(wrapper);
+        String gid = shortLinkGotoDO.getGid();
+
+        linkAccessStatsMapper.updateStats(fullShortUrl, gid, today, pv, uv, uip, hour, weekday);
     }
 }

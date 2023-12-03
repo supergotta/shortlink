@@ -31,7 +31,7 @@ public class ShortLinkController {
      * 短链接跳转
      */
     @GetMapping("/{short-uri}")
-    public void restoreUrl(@PathVariable("short-uri") String shortUri, HttpServletRequest request, HttpServletResponse response) throws IOException {
+    public void restoreUrl(@PathVariable("short-uri") String shortUri, HttpServletRequest request, HttpServletResponse response, String gid) throws IOException {
         shortLinkService.restoreUrl(shortUri, request, response);
     }
 
