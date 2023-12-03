@@ -78,6 +78,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
     private final LinkBrowserStatsMapper linkBrowserStatsMapper;
     private final LinkAccessLogsMapper linkAccessLogsMapper;
     private final LinkDeviceStatsMapper linkDeviceStatsMapper;
+    private final LinkNetworkStatsMapper linkNetworkStatsMapper;
 
     private final Parser uaParser;
     private final RestTemplate restTemplate;
@@ -416,6 +417,12 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         // TODO 这里设别类型异常
         String device = c.device.family;
         linkDeviceStatsMapper.updateDeviceStats(fullShortUrl, gid, today, 1, device);
+
+        // 开始更新访问网络数据统计
+        // 通过ip地址判断网络类型
+        // TODO 这里的判断逻辑有瑕疵
+        String network = realIP.startsWith("192.168.") || realIP.startsWith("10.") ? "WIFI" : "Mobile";
+        linkNetworkStatsMapper.updateNetworkStats(fullShortUrl, gid, today, 1, network);
 
         // 添加访问日志
         LinkAccessLogsDO linkAccessLogsDO = LinkAccessLogsDO.builder()
