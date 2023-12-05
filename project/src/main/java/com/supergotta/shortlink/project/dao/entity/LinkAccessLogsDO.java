@@ -37,7 +37,7 @@ public class LinkAccessLogsDO {
     private String user;
 
     /**
-     * 操作系统
+     * 浏览器
      */
     private String browser;
 
@@ -47,9 +47,24 @@ public class LinkAccessLogsDO {
     private String os;
 
     /**
-     * 操作系统
+     * IP地址
      */
     private String ip;
+
+    /**
+     * 所在网络类型
+     */
+    private String network;
+
+    /**
+     * 访问设备
+     */
+    private String device;
+
+    /**
+     * 地区信息
+     */
+    private String locale;
 
     /**
      * 创建时间

@@ -432,6 +432,9 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                 .browser(browser)
                 .os(os)
                 .ip(realIP)
+                .network(network)
+                .device(device)
+                .locale("中国-" + province + "-" + city)
                 .build();
         linkAccessLogsMapper.insert(linkAccessLogsDO);
     }
