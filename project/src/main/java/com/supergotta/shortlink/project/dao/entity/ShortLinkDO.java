@@ -84,6 +84,21 @@ public class ShortLinkDO implements Serializable {
     private String description;
 
     /**
+     * 历史pv
+     */
+    private Integer totalPv;
+
+    /**
+     * 历史uv
+     */
+    private Integer totalUv;
+
+    /**
+     * 历史uip
+     */
+    private Integer totalUip;
+
+    /**
      * 创建时间
      */
     @TableField(fill = FieldFill.INSERT)

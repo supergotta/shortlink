@@ -70,6 +70,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
 
     private final RBloomFilter<String> shortUriCreateCachePenetrationBloomFilter;
     private final ShortLinkGotoMapper shortLinkGotoMapper;
+    private final ShortLinkMapper shortLinkMapper;
     private final StringRedisTemplate stringRedisTemplate;
     private final RedissonClient redissonClient;
     private final LinkAccessStatsMapper linkAccessStatsMapper;
@@ -116,6 +117,10 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         shortLinkDO.setFullShortUrl(shortLinkCreateReqDTO.getDomain() + "/" + shortLinkSuffix);
         shortLinkDO.setShortUri(shortLinkSuffix);
         shortLinkDO.setEnableStatus(0);
+        //将totalUv, totalPv, totalUip设为默认值0
+        shortLinkDO.setTotalPv(0);
+        shortLinkDO.setTotalUv(0);
+        shortLinkDO.setTotalUip(0);
         // 新建短链接的同时将短链接FullShortUrl和分组标识gid的关系存入Goto表中
         ShortLinkGotoDO shortLinkGotoDO = ShortLinkGotoDO.builder().FullShortLink(shortLinkDO.getFullShortUrl()).gid(shortLinkDO.getGid()).build();
 
@@ -381,8 +386,10 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         int hour = DateUtil.hour(new Date(), true);
         int weekday = DateUtil.dayOfWeek(new Date());
         LocalDate today = LocalDate.now();
-
+        // 更新基础监控数据
         linkAccessStatsMapper.updateStats(fullShortUrl, gid, today, pv, uv, uip, hour, weekday);
+        // 更新t_link表数据
+        shortLinkMapper.incrementStats(fullShortUrl, gid, pv, uv, uip);
 
         // 开始更新Local的数据统计
         // 1. 调用高德地图API

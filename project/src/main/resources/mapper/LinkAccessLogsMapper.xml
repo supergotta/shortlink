@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.supergotta.shortlink.project.dao.mapper.LinkAccessLogsMapper">
+
+
+    <select id="selectUvTypeByUsers" resultType="java.util.Map">
+        select
+            user,
+            case when min(create_time) between #{accessLogReqDTO.startDate} and #{accessLogReqDTO.endDate} then '新访客' else '旧访客' end as uvType
+        from t_link_access_logs
+        where full_short_url = #{accessLogReqDTO.fullShortUrl} and gid = #{accessLogReqDTO.gid}
+            and user in
+            <foreach collection="users" item="item" open="(" separator="," close=")">
+                #{item}
+            </foreach>
+        group by user
+    </select>
+</mapper>

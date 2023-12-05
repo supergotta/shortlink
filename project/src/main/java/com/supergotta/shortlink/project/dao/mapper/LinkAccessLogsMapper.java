@@ -3,12 +3,15 @@ package com.supergotta.shortlink.project.dao.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.supergotta.shortlink.project.dao.entity.LinkAccessLogsDO;
 import com.supergotta.shortlink.project.dao.entity.LinkAccessStatsDO;
+import com.supergotta.shortlink.project.dto.req.ShortLinkStatsAccessLogReqDTO;
 import com.supergotta.shortlink.project.dto.req.ShortLinkStatsReqDTO;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Mapper
 public interface LinkAccessLogsMapper extends BaseMapper<LinkAccessLogsDO> {
@@ -49,4 +52,14 @@ public interface LinkAccessLogsMapper extends BaseMapper<LinkAccessLogsDO> {
             "gid = #{gid} " +
             "and create_time between #{startDate} and #{endDate} ")
     LinkAccessStatsDO findPvUvUipByGroup(ShortLinkStatsReqDTO shortLinkStatsReqDTO);
+
+    /**
+     * 根据信息判断用户列表中用户是否为新老用户
+     * @param accessLogReqDTO 判断条件
+     * @param users 用户列表
+     * @return 用户类型列表
+     */
+    /*@MapKey("user")*/
+    List<Map<String, Object>> selectUvTypeByUsers(@Param("accessLogReqDTO")ShortLinkStatsAccessLogReqDTO accessLogReqDTO,
+                                                  @Param("users") Set<String> users);
 }
