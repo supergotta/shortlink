@@ -54,6 +54,18 @@ public interface LinkAccessLogsMapper extends BaseMapper<LinkAccessLogsDO> {
     LinkAccessStatsDO findPvUvUipByGroup(ShortLinkStatsReqDTO shortLinkStatsReqDTO);
 
     /**
+     * 根据短链接统计总体pv、uv、uip
+     */
+    @Select("select count(user) as pv, count(distinct user) as uv, count(distinct ip) as uip " +
+            "from t_link_access_logs " +
+            "where " +
+            "gid = #{gid} " +
+            "and full_short_url = #{fullShortUrl} " +
+            "and create_time between #{startDate} and #{endDate} " +
+            "group by full_short_url, gid")
+    LinkAccessStatsDO findPvUvUipByShortLink(ShortLinkStatsReqDTO shortLinkStatsReqDTO);
+
+    /**
      * 根据信息判断用户列表中用户是否为新老用户
      * @param accessLogReqDTO 判断条件
      * @param users 用户列表

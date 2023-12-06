@@ -256,7 +256,7 @@ public class ShortLinkStatsServiceImpl implements ShortLinkStatsService {
         result.setNetworkStats(networkResult);
 
         // *****整体基础访问数据统计*****
-        LinkAccessStatsDO linkAccessStatsDO = linkAccessLogsMapper.findPvUvUipByGroup(shortLinkStatsReqDTO);
+        LinkAccessStatsDO linkAccessStatsDO = linkAccessLogsMapper.findPvUvUipByShortLink(shortLinkStatsReqDTO);
         result.setPv(linkAccessStatsDO.getPv());
         result.setUv(linkAccessStatsDO.getUv());
         result.setUip(linkAccessStatsDO.getUip());
