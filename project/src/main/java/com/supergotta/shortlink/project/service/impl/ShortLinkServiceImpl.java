@@ -17,6 +17,7 @@ import com.supergotta.shortlink.project.common.constant.ShortLinkConstant;
 import com.supergotta.shortlink.project.common.enums.ValidDateType;
 import com.supergotta.shortlink.project.common.exception.ServiceException;
 import com.supergotta.shortlink.project.dao.entity.LinkAccessLogsDO;
+import com.supergotta.shortlink.project.dao.entity.LinkStatsTodayDO;
 import com.supergotta.shortlink.project.dao.entity.ShortLinkDO;
 import com.supergotta.shortlink.project.dao.entity.ShortLinkGotoDO;
 import com.supergotta.shortlink.project.dao.mapper.*;
@@ -80,6 +81,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
     private final LinkAccessLogsMapper linkAccessLogsMapper;
     private final LinkDeviceStatsMapper linkDeviceStatsMapper;
     private final LinkNetworkStatsMapper linkNetworkStatsMapper;
+    private final LinkStatsTodayMapper linkStatsTodayMapper;
 
     private final Parser uaParser;
     private final RestTemplate restTemplate;
@@ -390,6 +392,16 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         linkAccessStatsMapper.updateStats(fullShortUrl, gid, today, pv, uv, uip, hour, weekday);
         // 更新t_link表数据
         shortLinkMapper.incrementStats(fullShortUrl, gid, pv, uv, uip);
+        // 更新stats_today数据表
+        LinkStatsTodayDO linkStatsTodayDO = LinkStatsTodayDO.builder()
+                .fullShortUrl(fullShortUrl)
+                .gid(gid)
+                .todayPv(pv)
+                .todayUv(uv)
+                .todayUip(uip)
+                .date(new Date())
+                .build();
+        linkStatsTodayMapper.updateTodayStatsByShortLink(linkStatsTodayDO);
 
         // 开始更新Local的数据统计
         // 1. 调用高德地图API
