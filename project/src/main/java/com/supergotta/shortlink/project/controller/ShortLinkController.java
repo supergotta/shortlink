@@ -50,11 +50,13 @@ public class ShortLinkController {
     public Result<IPage<ShortLinkPageRespDTO>> pageShortLink(
             @RequestParam("gid") String gid,
             @RequestParam("current") String current,
-            @RequestParam("size") String size){
+            @RequestParam("size") String size,
+            @RequestParam("orderTag") String orderTag ){
         ShortLinkPageReqDTO shortLinkPageReqDTO = new ShortLinkPageReqDTO();
         shortLinkPageReqDTO.setGid(gid);
         shortLinkPageReqDTO.setCountId(current);
         shortLinkPageReqDTO.setSize(Long.parseLong(size));
+        shortLinkPageReqDTO.setOrderTag(orderTag);
         return Results.success(shortLinkService.pageShortLink(shortLinkPageReqDTO));
     }
 
