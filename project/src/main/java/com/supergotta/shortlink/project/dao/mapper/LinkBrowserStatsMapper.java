@@ -2,6 +2,7 @@ package com.supergotta.shortlink.project.dao.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.supergotta.shortlink.project.dao.entity.LinkBrowserStatsDO;
+import com.supergotta.shortlink.project.dto.req.ShortLinkGroupStatsReqDTO;
 import com.supergotta.shortlink.project.dto.req.ShortLinkStatsReqDTO;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
@@ -30,4 +31,15 @@ public interface LinkBrowserStatsMapper extends BaseMapper<LinkBrowserStatsDO> {
             "and date between #{startDate} and #{endDate} " +
             "group by full_short_url, gid, browser")
     List<LinkBrowserStatsDO> listBrowserStatsByShortLink(ShortLinkStatsReqDTO shortLinkStatsReqDTO);
+
+    /**
+     * 通过分组查询每种浏览器对应的访问数
+     */
+    @Select("select browser, sum(cnt) as cnt " +
+            "from t_link_browser_stats " +
+            "where " +
+            "gid = #{gid} " +
+            "and date between #{startDate} and #{endDate} " +
+            "group by gid, browser")
+    List<LinkBrowserStatsDO> listBrowserStatsBySGroup(ShortLinkGroupStatsReqDTO shortLinkGroupStatsReqDTO);
 }

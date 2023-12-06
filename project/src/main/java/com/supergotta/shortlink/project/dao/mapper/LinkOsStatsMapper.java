@@ -2,6 +2,7 @@ package com.supergotta.shortlink.project.dao.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.supergotta.shortlink.project.dao.entity.LinkOsStatsDO;
+import com.supergotta.shortlink.project.dto.req.ShortLinkGroupStatsReqDTO;
 import com.supergotta.shortlink.project.dto.req.ShortLinkStatsReqDTO;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
@@ -30,4 +31,15 @@ public interface LinkOsStatsMapper extends BaseMapper<LinkOsStatsDO> {
             "and date between #{startDate} and #{endDate} " +
             "group by full_short_url, gid, os;")
     List<LinkOsStatsDO> listOsStatsByShortLink(ShortLinkStatsReqDTO shortLinkStatsReqDTO);
+
+    /**
+     * 根据分组标识查询操作系统对应的访问数
+     */
+    @Select("select os, sum(cnt) as cnt " +
+            "from t_link_os_stats " +
+            "where " +
+            "gid = #{gid} " +
+            "and date between #{startDate} and #{endDate} " +
+            "group by gid, os;")
+    List<LinkOsStatsDO> listOsStatsByGroup(ShortLinkGroupStatsReqDTO shortLinkGroupStatsReqDTO);
 }

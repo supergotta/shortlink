@@ -1,6 +1,7 @@
 package com.supergotta.shortlink.project.service;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.supergotta.shortlink.project.dto.req.ShortLinkGroupStatsReqDTO;
 import com.supergotta.shortlink.project.dto.req.ShortLinkStatsAccessLogReqDTO;
 import com.supergotta.shortlink.project.dto.req.ShortLinkStatsReqDTO;
 import com.supergotta.shortlink.project.dto.resp.ShortLinkStatsAccessLogRespDTO;
@@ -20,4 +21,11 @@ public interface ShortLinkStatsService {
      * @return 查询结果
      */
     IPage<ShortLinkStatsAccessLogRespDTO> shortLinkStatsAccessLog(ShortLinkStatsAccessLogReqDTO shortLinkStatsAccessLogDTO);
+
+    /**
+     * 获取分组在指定日期范围内监控数据
+     * @param shortLinkGroupStatsReqDTO 请求对象
+     * @return 分组的监控数据
+     */
+    ShortLinkStatsRespDTO groupShortLinkStats(ShortLinkGroupStatsReqDTO shortLinkGroupStatsReqDTO);
 }

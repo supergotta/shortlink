@@ -2,6 +2,7 @@ package com.supergotta.shortlink.project.dao.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.supergotta.shortlink.project.dao.entity.LinkAccessStatsDO;
+import com.supergotta.shortlink.project.dto.req.ShortLinkGroupStatsReqDTO;
 import com.supergotta.shortlink.project.dto.req.ShortLinkStatsReqDTO;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
@@ -34,6 +35,17 @@ public interface LinkAccessStatsMapper extends BaseMapper<LinkAccessStatsDO> {
     List<LinkAccessStatsDO> listStatsByShortLink(ShortLinkStatsReqDTO shortLinkStatsReqDTO);
 
     /**
+     * 根据分组标识查询日期内基础数据
+     */
+    @Select("select date, sum(pv) as pv, sum(uv) as uv, sum(uip) as uip " +
+            "from t_link_access_stats " +
+            "where " +
+            "gid = #{gid} " +
+            "and date between #{startDate} and #{endDate} " +
+            "group by gid, date;")
+    List<LinkAccessStatsDO> listStatsByGroup(ShortLinkGroupStatsReqDTO shortLinkGroupStatsReqDTO);
+
+    /**
      * 查询日期内每小时数据
      */
     @Select("select hour, sum(pv) as pv " +
@@ -46,6 +58,17 @@ public interface LinkAccessStatsMapper extends BaseMapper<LinkAccessStatsDO> {
     List<LinkAccessStatsDO> listHourStatsByShortLink(ShortLinkStatsReqDTO shortLinkStatsReqDTO);
 
     /**
+     * 查询日期内每小时数据
+     */
+    @Select("select hour, sum(pv) as pv " +
+            "from t_link_access_stats " +
+            "where " +
+            "gid = #{gid} " +
+            "and date between #{startDate} and #{endDate} " +
+            "group by gid, hour;")
+    List<LinkAccessStatsDO> listHourStatsByGroup(ShortLinkGroupStatsReqDTO shortLinkGroupStatsReqDTO);
+
+    /**
      * 根据短链接查询周内访问详情
      */
     @Select("select weekday, sum(pv) as pv " +
@@ -56,4 +79,15 @@ public interface LinkAccessStatsMapper extends BaseMapper<LinkAccessStatsDO> {
             "and date between #{startDate} and #{endDate} " +
             "group by full_short_url, gid, weekday;")
     List<LinkAccessStatsDO> listWeekdaySatatsByShortLink(ShortLinkStatsReqDTO shortLinkStatsReqDTO);
+
+    /**
+     * 根据分组标识查询周内访问详情
+     */
+    @Select("select weekday, sum(pv) as pv " +
+            "from t_link_access_stats " +
+            "where " +
+            "gid = #{gid} " +
+            "and date between #{startDate} and #{endDate} " +
+            "group by gid, weekday;")
+    List<LinkAccessStatsDO> listWeekdaySatatsByGroup(ShortLinkGroupStatsReqDTO shortLinkGroupStatsReqDTO);
 }
