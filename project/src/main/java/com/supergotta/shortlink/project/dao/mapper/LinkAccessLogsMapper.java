@@ -3,6 +3,7 @@ package com.supergotta.shortlink.project.dao.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.supergotta.shortlink.project.dao.entity.LinkAccessLogsDO;
 import com.supergotta.shortlink.project.dao.entity.LinkAccessStatsDO;
+import com.supergotta.shortlink.project.dto.req.ShortLinkGroupStatsAccessLogReqDTO;
 import com.supergotta.shortlink.project.dto.req.ShortLinkGroupStatsReqDTO;
 import com.supergotta.shortlink.project.dto.req.ShortLinkStatsAccessLogReqDTO;
 import com.supergotta.shortlink.project.dto.req.ShortLinkStatsReqDTO;
@@ -113,4 +114,7 @@ public interface LinkAccessLogsMapper extends BaseMapper<LinkAccessLogsDO> {
     /*@MapKey("user")*/
     List<Map<String, Object>> selectUvTypeByUsers(@Param("accessLogReqDTO")ShortLinkStatsAccessLogReqDTO accessLogReqDTO,
                                                   @Param("users") Set<String> users);
+
+    List<Map<String, Object>> selectGroupUvTypeByUsers(@Param("accessLogReqDTO") ShortLinkGroupStatsAccessLogReqDTO accessLogReqDTO,
+                                                       @Param("users")Set<String> users);
 }

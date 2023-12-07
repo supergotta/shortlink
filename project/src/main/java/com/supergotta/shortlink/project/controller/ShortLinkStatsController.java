@@ -3,6 +3,7 @@ package com.supergotta.shortlink.project.controller;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.supergotta.shortlink.project.common.convention.result.Result;
 import com.supergotta.shortlink.project.common.convention.result.Results;
+import com.supergotta.shortlink.project.dto.req.ShortLinkGroupStatsAccessLogReqDTO;
 import com.supergotta.shortlink.project.dto.req.ShortLinkGroupStatsReqDTO;
 import com.supergotta.shortlink.project.dto.req.ShortLinkStatsAccessLogReqDTO;
 import com.supergotta.shortlink.project.dto.req.ShortLinkStatsReqDTO;
@@ -36,10 +37,19 @@ public class ShortLinkStatsController {
     }
 
     /**
-     * 分页查询指定时间内访问日志
+     * 根据短链接分页查询指定时间内访问日志
      */
     @GetMapping("/api/short-link/v1/stats/access-record")
     public Result<IPage<ShortLinkStatsAccessLogRespDTO>> shortLinkStatsAccessLog(ShortLinkStatsAccessLogReqDTO shortLinkStatsAccessLogDTO) {
         return Results.success(shortLinkStatsService.shortLinkStatsAccessLog(shortLinkStatsAccessLogDTO));
     }
+
+    /**
+     * 根据分组标识分页查询指定时间内访问日志
+     */
+    @GetMapping("/api/short-link/v1/stats/access-record/group")
+    public Result<IPage<ShortLinkStatsAccessLogRespDTO>> groupShortLinkStatsAccessLog(ShortLinkGroupStatsAccessLogReqDTO shortLinkGroupStatsAccessLogReqDTO) {
+        return Results.success(shortLinkStatsService.groupShortLinkStatsAccessLog(shortLinkGroupStatsAccessLogReqDTO));
+    }
+
 }

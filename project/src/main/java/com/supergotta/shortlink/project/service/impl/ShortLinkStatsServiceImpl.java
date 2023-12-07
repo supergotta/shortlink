@@ -8,6 +8,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.supergotta.shortlink.project.dao.entity.*;
 import com.supergotta.shortlink.project.dao.mapper.*;
+import com.supergotta.shortlink.project.dto.req.ShortLinkGroupStatsAccessLogReqDTO;
 import com.supergotta.shortlink.project.dto.req.ShortLinkGroupStatsReqDTO;
 import com.supergotta.shortlink.project.dto.req.ShortLinkStatsAccessLogReqDTO;
 import com.supergotta.shortlink.project.dto.req.ShortLinkStatsReqDTO;
@@ -543,5 +544,47 @@ public class ShortLinkStatsServiceImpl implements ShortLinkStatsService {
         return result;
     }
 
+    @Override
+    public IPage<ShortLinkStatsAccessLogRespDTO> groupShortLinkStatsAccessLog(ShortLinkGroupStatsAccessLogReqDTO accessLogReqDTO) {
+        // 1. 分页查询LinkAccessLogs表
+        // 1.1 设置查询条件
+        LambdaQueryWrapper<LinkAccessLogsDO> wrapper = new LambdaQueryWrapper<>(LinkAccessLogsDO.class)
+                .eq(LinkAccessLogsDO::getGid, accessLogReqDTO.getGid())
+                .between(LinkAccessLogsDO::getCreateTime, accessLogReqDTO.getStartDate(), accessLogReqDTO.getEndDate())
+                .eq(LinkAccessLogsDO::getDelFlag, 0)
+                .orderByDesc(LinkAccessLogsDO::getCreateTime);
+        // 1.2 获取分页实体
+        Page<LinkAccessLogsDO> page = new Page<>(accessLogReqDTO.getCurrent(), accessLogReqDTO.getSize());
+        // 1.3 获取查询结果
+        Page<LinkAccessLogsDO> linkAccessLogsDOPage = linkAccessLogsMapper.selectPage(page, wrapper);
+
+        // 2. 转换查询结果
+        // 2.1 首先确认返回类型
+        List<LinkAccessLogsDO> linkAccessLogsDOS = linkAccessLogsDOPage.getRecords();
+        List<ShortLinkStatsAccessLogRespDTO> respDTOS = new ArrayList<>(linkAccessLogsDOS.size());
+        Set<String> users = new LinkedHashSet<>();
+        for (LinkAccessLogsDO linkAccessLogsDO : linkAccessLogsDOS) {
+            // 2.2 解析分页查询的结果, 将得到的DO值转换为respDTO同时判断用户类型
+            respDTOS.add(BeanUtil.toBean(linkAccessLogsDO, ShortLinkStatsAccessLogRespDTO.class));
+            // 2.3 同时获取记录中的访客
+            users.add(linkAccessLogsDO.getUser());
+        }
+
+        // 3. 判断用户类型
+        List<Map<String, Object>> uvTypeList = linkAccessLogsMapper.selectGroupUvTypeByUsers(accessLogReqDTO, users);
+        Map<String, String> user2Type = new HashMap<>();
+        for (Map<String, Object> uvType : uvTypeList) {
+            user2Type.put(uvType.get("user").toString(), uvType.get("uvType").toString());
+        }
+        for (ShortLinkStatsAccessLogRespDTO respDTO : respDTOS) {
+            respDTO.setUvType(user2Type.get(respDTO.getUser()));
+        }
+
+        // 4. 生成返回结果
+        Page<ShortLinkStatsAccessLogRespDTO> result = new Page<>();
+        BeanUtil.copyProperties(linkAccessLogsDOPage, result);
+        result.setRecords(respDTOS);
+        return result;
+    }
 
 }

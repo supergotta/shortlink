@@ -16,4 +16,16 @@
             </foreach>
         group by user
     </select>
+    <select id="selectGroupUvTypeByUsers" resultType="java.util.Map">
+        select
+        user,
+        case when min(create_time) between #{accessLogReqDTO.startDate} and #{accessLogReqDTO.endDate} then '新访客' else '旧访客' end as uvType
+        from t_link_access_logs
+        where  gid = #{accessLogReqDTO.gid}
+        and user in
+        <foreach collection="users" item="item" open="(" separator="," close=")">
+            #{item}
+        </foreach>
+        group by user
+    </select>
 </mapper>
